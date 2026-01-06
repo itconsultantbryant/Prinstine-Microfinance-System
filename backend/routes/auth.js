@@ -84,17 +84,22 @@ router.post('/register', [
 
 // Login
 router.post('/login', [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Email:', req.body.email);
+    console.log('Body:', JSON.stringify(req.body));
     
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log('Validation errors:', errors.array());
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return res.status(400).json({ 
+        success: false, 
+        message: errors.array()[0].msg || 'Validation failed',
+        errors: errors.array() 
+      });
     }
 
     const { email, password } = req.body;
