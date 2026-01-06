@@ -122,26 +122,35 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serve frontend static files in production (if frontend is built in backend/public)
+// Serve frontend static files in production (if frontend is built)
 if (process.env.NODE_ENV === 'production' && process.env.SERVE_FRONTEND === 'true') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-  });
-} else {
-  // 404 handler for API routes only
-  app.use((req, res) => {
-    // Only return JSON for API routes
-    if (req.path.startsWith('/api')) {
-      res.status(404).json({
-        success: false,
-        message: 'Route not found'
-      });
-    } else {
-      res.status(404).send('Not found');
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  // Serve static files from frontend dist
+  app.use(express.static(frontendPath));
+  
+  // Handle React Router - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
     }
+    // Serve index.html for all other routes (SPA fallback)
+    res.sendFile(path.join(frontendPath, 'index.html'));
   });
 }
+
+// 404 handler for API routes only
+app.use((req, res) => {
+  // Only return JSON for API routes
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({
+      success: false,
+      message: 'Route not found'
+    });
+  } else if (process.env.NODE_ENV !== 'production' || process.env.SERVE_FRONTEND !== 'true') {
+    res.status(404).send('Not found');
+  }
+});
 
 // Database connection and server start
 db.sequelize.authenticate()

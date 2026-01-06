@@ -1,5 +1,5 @@
 services:
-  # Backend API Service
+  # Backend API Service (also serves frontend)
   - type: web
     name: microfinance-backend
     env: node
@@ -23,39 +23,13 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        fromService:
-          name: microfinance-frontend
-          type: web
-          property: host
-      - key: FRONTEND_URL
-        fromService:
-          name: microfinance-frontend
-          type: web
-          property: host
+        value: "*"
       - key: SERVE_FRONTEND
-        value: "false"
+        value: "true"
     disk:
       name: microfinance-uploads
       mountPath: /opt/render/project/src/backend/uploads
       sizeGB: 1
-
-  # Frontend Static Site - Serve from Backend for SPA routing
-  - type: web
-    name: microfinance-frontend
-    env: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: microfinance-backend
-          type: web
-          property: host
 
 databases:
   - name: microfinance-db

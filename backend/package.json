@@ -10,6 +10,7 @@
     "seed": "node scripts/seed.js",
     "clear": "node scripts/clear-all-data.js",
     "postinstall": "npm run migrate",
+    "build-frontend": "cd ../frontend && npm install && npm run build",
     "test": "jest"
   },
   "keywords": ["microfinance", "nodejs", "express"],
