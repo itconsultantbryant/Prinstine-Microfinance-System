@@ -5,12 +5,10 @@ let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // If API_URL is just a hostname (from Render service reference), construct full URL
 if (API_URL && !API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
-  // Check if it contains 'microfinance-backend' or similar service name
-  if (API_URL.includes('microfinance-backend')) {
+  // Check if it's a Render service hostname (contains service name pattern)
+  // Render service references return just the hostname like "microfinance-backend-t5nm"
+  if (API_URL.includes('microfinance-backend') || API_URL.match(/^[a-z0-9-]+$/)) {
     // Construct full Render URL
-    API_URL = `https://${API_URL}.onrender.com`;
-  } else {
-    // For other cases, try to construct URL
     API_URL = `https://${API_URL}.onrender.com`;
   }
 }
