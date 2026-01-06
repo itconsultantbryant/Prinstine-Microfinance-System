@@ -32,18 +32,24 @@ services:
           name: microfinance-frontend
           type: web
           property: host
+      - key: SERVE_FRONTEND
+        value: "false"
     disk:
       name: microfinance-uploads
       mountPath: /opt/render/project/src/backend/uploads
       sizeGB: 1
 
-  # Frontend Static Site
+  # Frontend Static Site - Serve from Backend for SPA routing
   - type: web
     name: microfinance-frontend
     env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         fromService:

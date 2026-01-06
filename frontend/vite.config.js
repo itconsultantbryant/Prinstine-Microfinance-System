@@ -28,6 +28,8 @@ export default defineConfig({
         }
       }
     }
-  }
+  },
+  // Ensure _redirects file is copied to dist
+  publicDir: 'public'
 });
 
