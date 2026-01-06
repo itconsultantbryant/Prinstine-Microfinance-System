@@ -1,0 +1,518 @@
+import React, { useState, useEffect } from 'react';
+import apiClient from '../config/axios';
+import { toast } from 'react-toastify';
+import { useAuth } from '../contexts/AuthContext';
+import { hasPermission, ROLES, formatRoleName } from '../utils/permissions';
+import { Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [realtimeData, setRealtimeData] = useState(null);
+  const [historicalData, setHistoricalData] = useState(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchRealtimeData();
+    fetchHistoricalData();
+    
+    const dashboardInterval = setInterval(fetchDashboardData, 30000);
+    const realtimeInterval = setInterval(fetchRealtimeData, 10000);
+    
+    return () => {
+      clearInterval(dashboardInterval);
+      clearInterval(realtimeInterval);
+    };
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await apiClient.get('/api/dashboard');
+      setStats(response.data.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+      setLoading(false);
+    }
+  };
+
+  const fetchRealtimeData = async () => {
+    try {
+      const response = await apiClient.get('/api/dashboard/realtime');
+      setRealtimeData(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch real-time data:', error);
+    }
+  };
+
+  const fetchHistoricalData = async () => {
+    try {
+      const response = await apiClient.get('/api/dashboard/historical');
+      setHistoricalData(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch historical data:', error);
+      // Set empty structure if fetch fails
+      setHistoricalData({ months: [], portfolioValues: [], collections: [] });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure stats and statistics exist with defaults
+  const statistics = stats?.statistics || {
+    totalClients: 0,
+    activeLoans: 0,
+    totalSavings: 0,
+    overdueLoans: 0,
+    totalTransactions: 0,
+    portfolioValue: 0,
+    totalCollections: 0
+  };
+  const recentLoans = stats?.recentLoans || [];
+  const recentTransactions = stats?.recentTransactions || [];
+
+  // Chart data for portfolio trend - using real historical data
+  const portfolioData = historicalData ? {
+    labels: historicalData.months || [],
+    datasets: [
+      {
+        label: 'Portfolio Value',
+        data: historicalData.portfolioValues || [],
+        borderColor: 'rgb(37, 99, 235)',
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  } : {
+    labels: [],
+    datasets: []
+  };
+
+  // Chart data for loan distribution
+  const loanDistributionData = {
+    labels: ['Active', 'Pending', 'Overdue', 'Completed'],
+    datasets: [
+      {
+        data: [
+          statistics.activeLoans || 0,
+          realtimeData?.pendingLoans || 0,
+          statistics.overdueLoans || 0,
+          0
+        ],
+        backgroundColor: [
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(100, 116, 139, 0.8)',
+        ],
+        borderWidth: 2,
+        borderColor: '#fff',
+      },
+    ],
+  };
+
+  const StatCard = ({ icon, title, value, color, trend }) => (
+    <div className="col-md-3 col-sm-6 mb-4">
+      <div className="stat-card hover-lift">
+        <div className={`stat-icon bg-${color} text-white`}>
+          <i className={icon}></i>
+        </div>
+        <div className="stat-label">{title}</div>
+        <div className={`stat-value text-${color}`}>
+          {typeof value === 'number' && value >= 1000
+            ? `$${value.toLocaleString()}`
+            : value}
+        </div>
+        {trend && (
+          <div className="mt-2">
+            <small className={`text-${trend > 0 ? 'success' : 'danger'}`}>
+              <i className={`fas fa-arrow-${trend > 0 ? 'up' : 'down'}`}></i>
+              {Math.abs(trend)}%
+            </small>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Role-based dashboard title and description
+  const getDashboardTitle = () => {
+    const role = user?.role;
+    if (role === ROLES.ADMIN) {
+      return { title: 'Admin Dashboard', desc: 'Complete system overview and management' };
+    } else if (role === ROLES.MICRO_LOAN_OFFICER) {
+      return { title: 'Micro Loan Officer Dashboard', desc: 'Manage clients, loans, and approvals' };
+    } else if (role === ROLES.HEAD_MICRO_LOAN) {
+      return { title: 'Head Micro Loan Dashboard', desc: 'Oversee loan operations and approvals' };
+    } else if (role === ROLES.SUPERVISOR) {
+      return { title: 'Supervisor Dashboard', desc: 'Review and approve loan applications' };
+    } else if (role === ROLES.FINANCE) {
+      return { title: 'Finance Dashboard', desc: 'Manage loan disbursements and savings transactions' };
+    } else if (role === ROLES.BORROWER) {
+      return { title: 'My Dashboard', desc: 'View your loans, savings, and transaction history' };
+    }
+    return { title: 'Dashboard', desc: 'Welcome back! Here\'s what\'s happening today.' };
+  };
+
+  const { title, desc } = getDashboardTitle();
+
+  return (
+    <div className="fade-in">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 className="h3 mb-1">{title}</h1>
+          <p className="text-muted">{desc}</p>
+          {user && (
+            <small className="text-muted">
+              <i className="fas fa-user-tag me-1"></i>
+              Logged in as: <strong>{formatRoleName(user.role)}</strong>
+            </small>
+          )}
+        </div>
+        <div>
+          {hasPermission(user?.role, 'canViewReports') && (
+            <button className="btn btn-primary">
+              <i className="fas fa-download me-2"></i>Export Report
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Role-based Statistics Cards */}
+      <div className="row mb-4">
+        {/* For Borrower role - show only their data */}
+        {user?.role === ROLES.BORROWER ? (
+          <>
+            <StatCard
+              icon="fas fa-hand-holding-usd"
+              title="My Active Loans"
+              value={statistics.activeLoans || 0}
+              color="success"
+            />
+            <StatCard
+              icon="fas fa-piggy-bank"
+              title="My Savings Balance"
+              value={statistics.totalSavings || 0}
+              color="info"
+            />
+            <StatCard
+              icon="fas fa-exclamation-triangle"
+              title="Overdue Loans"
+              value={statistics.overdueLoans || 0}
+              color="danger"
+            />
+            {realtimeData && (
+              <StatCard
+                icon="fas fa-clock"
+                title="Pending Requests"
+                value={realtimeData.pendingLoans || 0}
+                color="warning"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {/* Clients - visible to roles that can view clients */}
+            {(hasPermission(user?.role, 'canViewClients') || user?.role === ROLES.ADMIN) && (
+              <StatCard
+                icon="fas fa-users"
+                title="Total Clients"
+                value={statistics.totalClients || 0}
+                color="primary"
+              />
+            )}
+            
+            {/* Loans - visible to roles that can view loans */}
+            {(hasPermission(user?.role, 'canViewLoans') || user?.role === ROLES.ADMIN) && (
+              <>
+                <StatCard
+                  icon="fas fa-hand-holding-usd"
+                  title="Active Loans"
+                  value={statistics.activeLoans || 0}
+                  color="success"
+                />
+                <StatCard
+                  icon="fas fa-exclamation-triangle"
+                  title="Overdue Loans"
+                  value={statistics.overdueLoans || 0}
+                  color="danger"
+                />
+              </>
+            )}
+
+            {/* Savings - visible to Finance and Admin */}
+            {(user?.role === ROLES.FINANCE || user?.role === ROLES.ADMIN) && (
+              <StatCard
+                icon="fas fa-piggy-bank"
+                title="Total Savings"
+                value={statistics.totalSavings || 0}
+                color="info"
+              />
+            )}
+
+            {/* Pending Approvals - visible to roles that can approve */}
+            {(hasPermission(user?.role, 'canApproveLoans') || user?.role === ROLES.ADMIN) && realtimeData && (
+              <StatCard
+                icon="fas fa-clock"
+                title="Pending Approvals"
+                value={realtimeData.pendingLoans || 0}
+                color="warning"
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Additional Stats - Role-based */}
+      <div className="row mb-4">
+        {/* Portfolio Value - visible to Head Micro Loan, Supervisor, Finance, Admin */}
+        {(user?.role === ROLES.HEAD_MICRO_LOAN || user?.role === ROLES.SUPERVISOR || 
+          user?.role === ROLES.FINANCE || user?.role === ROLES.ADMIN) && (
+          <StatCard
+            icon="fas fa-chart-line"
+            title="Portfolio Value"
+            value={statistics.portfolioValue || 0}
+            color="warning"
+          />
+        )}
+
+        {/* Collections - visible to Micro Loan Officer, Head Micro Loan, Admin */}
+        {(user?.role === ROLES.MICRO_LOAN_OFFICER || user?.role === ROLES.HEAD_MICRO_LOAN || 
+          user?.role === ROLES.ADMIN) && (
+          <StatCard
+            icon="fas fa-money-bill-wave"
+            title="Total Collections"
+            value={statistics.totalCollections || 0}
+            color="success"
+          />
+        )}
+
+        {/* Transactions - visible to Finance and Admin */}
+        {(user?.role === ROLES.FINANCE || user?.role === ROLES.ADMIN) && (
+          <StatCard
+            icon="fas fa-exchange-alt"
+            title="Total Transactions"
+            value={statistics.totalTransactions || 0}
+            color="info"
+          />
+        )}
+
+        {/* Pending KYC Approvals - visible to roles that can approve KYC */}
+        {(hasPermission(user?.role, 'canApproveKYC') || user?.role === ROLES.ADMIN) && realtimeData && (
+          <StatCard
+            icon="fas fa-id-card"
+            title="Pending KYC Approvals"
+            value={realtimeData.pendingKYC || 0}
+            color="info"
+          />
+        )}
+      </div>
+
+      {/* Charts Row */}
+      <div className="row mb-4">
+        <div className="col-md-8 mb-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">
+                <i className="fas fa-chart-line me-2"></i>Portfolio Trend
+              </h5>
+            </div>
+            <div className="card-body">
+              <Line 
+                key="portfolio-chart"
+                data={portfolioData} 
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  plugins: {
+                    legend: { display: false },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: function(value) {
+                          return '$' + value.toLocaleString();
+                        }
+                      }
+                    }
+                  }
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4 mb-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">
+                <i className="fas fa-chart-pie me-2"></i>Loan Distribution
+              </h5>
+            </div>
+              <div className="card-body">
+                {loanDistributionData.datasets[0].data.some(d => d > 0) ? (
+                  <Doughnut 
+                    key="loan-distribution-chart"
+                    data={loanDistributionData} 
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: true,
+                      plugins: {
+                        legend: {
+                          position: 'bottom',
+                        },
+                      },
+                    }} 
+                  />
+                ) : (
+                  <div className="text-center text-muted py-5">
+                    No loan data available yet
+                  </div>
+                )}
+              </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="row">
+        <div className="col-md-6 mb-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">
+                <i className="fas fa-file-invoice-dollar me-2"></i>Recent Loans
+              </h5>
+            </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Loan Number</th>
+                      <th>Client</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentLoans && recentLoans.length > 0 ? (
+                      recentLoans.map((loan) => (
+                        <tr key={loan.id}>
+                          <td>{loan.loan_number}</td>
+                          <td>
+                            {loan.client?.first_name} {loan.client?.last_name}
+                          </td>
+                          <td>${parseFloat(loan.amount).toLocaleString()}</td>
+                          <td>
+                            <span className={`badge bg-${
+                              loan.status === 'active' ? 'success' :
+                              loan.status === 'pending' ? 'warning' :
+                              loan.status === 'overdue' ? 'danger' : 'secondary'
+                            }`}>
+                              {loan.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="text-center text-muted py-4">
+                          No recent loans
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-6 mb-4">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">
+                <i className="fas fa-exchange-alt me-2"></i>Recent Transactions
+              </h5>
+            </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Transaction</th>
+                      <th>Client</th>
+                      <th>Amount</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTransactions && recentTransactions.length > 0 ? (
+                      recentTransactions.map((transaction) => (
+                        <tr key={transaction.id}>
+                          <td>{transaction.transaction_number}</td>
+                          <td>
+                            {transaction.client?.first_name} {transaction.client?.last_name}
+                          </td>
+                          <td>${parseFloat(transaction.amount).toLocaleString()}</td>
+                          <td>
+                            {new Date(transaction.transaction_date).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="text-center text-muted py-4">
+                          No recent transactions
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

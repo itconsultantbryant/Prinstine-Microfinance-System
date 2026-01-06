@@ -1,0 +1,50 @@
+services:
+  # Backend API Service
+  - type: web
+    name: microfinance-backend
+    env: node
+    region: oregon
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_DIALECT
+        value: postgres
+      - key: DB_URL
+        fromDatabase:
+          name: microfinance-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+    disk:
+      name: microfinance-uploads
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
+
+  # Frontend Static Site
+  - type: static
+    name: microfinance-frontend
+    region: oregon
+    plan: starter
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+        value: https://microfinance-backend.onrender.com
+
+databases:
+  - name: microfinance-db
+    region: oregon
+    plan: free
+    databaseName: microfinance
+    user: microfinance_user
