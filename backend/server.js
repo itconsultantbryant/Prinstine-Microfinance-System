@@ -55,6 +55,8 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
   }
+  // Add common Render static site patterns
+  allowedOrigins.push('https://*.onrender.com');
 }
 
 app.use(cors({
@@ -120,13 +122,26 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
+// Serve frontend static files in production (if frontend is built in backend/public)
+if (process.env.NODE_ENV === 'production' && process.env.SERVE_FRONTEND === 'true') {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
   });
-});
+} else {
+  // 404 handler for API routes only
+  app.use((req, res) => {
+    // Only return JSON for API routes
+    if (req.path.startsWith('/api')) {
+      res.status(404).json({
+        success: false,
+        message: 'Route not found'
+      });
+    } else {
+      res.status(404).send('Not found');
+    }
+  });
+}
 
 // Database connection and server start
 db.sequelize.authenticate()
