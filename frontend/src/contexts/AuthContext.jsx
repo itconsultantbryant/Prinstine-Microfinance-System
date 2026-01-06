@@ -45,10 +45,13 @@ export const AuthProvider = ({ children }) => {
       
       const response = await apiClient.post('/api/auth/login', { email, password });
       console.log('Login response status:', response.status);
-      console.log('Login response data:', JSON.stringify(response.data, null, 2));
+      console.log('Login response headers:', response.headers);
+      console.log('Login response data type:', typeof response.data);
+      console.log('Login response data:', response.data);
+      console.log('Login response data stringified:', JSON.stringify(response.data, null, 2));
       
       if (response.data && response.data.success && response.data.data) {
-        const { user, token } = response.data.data;
+        const { user, token } = responseData.data;
         
         if (!token) {
           console.error('No token in response');
@@ -73,10 +76,10 @@ export const AuthProvider = ({ children }) => {
         console.log('Login successful, user set:', user.email);
         return { success: true };
       } else {
-        console.error('Invalid response structure:', response.data);
+        console.error('Invalid response structure:', responseData);
         return {
           success: false,
-          message: response.data?.message || 'Login failed: Invalid response'
+          message: responseData?.message || 'Login failed: Invalid response'
         };
       }
     } catch (error) {

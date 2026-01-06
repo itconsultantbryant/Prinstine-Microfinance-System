@@ -5,11 +5,18 @@ let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // If API_URL is just a hostname (from Render service reference), construct full URL
 if (API_URL && !API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
-  // Assume it's a Render service hostname, construct full URL
-  API_URL = `https://${API_URL}.onrender.com`;
+  // Check if it contains 'microfinance-backend' or similar service name
+  if (API_URL.includes('microfinance-backend')) {
+    // Construct full Render URL
+    API_URL = `https://${API_URL}.onrender.com`;
+  } else {
+    // For other cases, try to construct URL
+    API_URL = `https://${API_URL}.onrender.com`;
+  }
 }
 
 console.log('API Client initialized with URL:', API_URL);
+console.log('VITE_API_URL env var:', import.meta.env.VITE_API_URL);
 
 // Create axios instance with base URL
 const apiClient = axios.create({
