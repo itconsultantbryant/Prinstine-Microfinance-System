@@ -50,7 +50,17 @@ export const AuthProvider = ({ children }) => {
       console.log('Login response data:', response.data);
       console.log('Login response data stringified:', JSON.stringify(response.data, null, 2));
       
-      if (response.data && response.data.success && response.data.data) {
+      // Handle case where response.data might be a string that needs parsing
+      let responseData = response.data;
+      if (typeof responseData === 'string' && responseData.trim()) {
+        try {
+          responseData = JSON.parse(responseData);
+        } catch (e) {
+          console.error('Failed to parse response as JSON:', e);
+        }
+      }
+      
+      if (responseData && responseData.success && responseData.data) {
         const { user, token } = responseData.data;
         
         if (!token) {
