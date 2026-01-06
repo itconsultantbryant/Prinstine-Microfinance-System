@@ -33,7 +33,7 @@ services:
   - type: web
     name: microfinance-frontend
     env: static
-    plan: starter
+    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
