@@ -1,7 +1,13 @@
 import axios from 'axios';
 
 // Get API URL from environment variable or use default
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// If API_URL is just a hostname (from Render service reference), construct full URL
+if (API_URL && !API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
+  // Assume it's a Render service hostname, construct full URL
+  API_URL = `https://${API_URL}.onrender.com`;
+}
 
 console.log('API Client initialized with URL:', API_URL);
 
