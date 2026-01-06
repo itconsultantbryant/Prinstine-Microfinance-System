@@ -33,14 +33,12 @@ services:
   - type: web
     name: microfinance-frontend
     env: static
-    region: oregon
     plan: starter
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        sync: false
         value: https://microfinance-backend.onrender.com
 
 databases:
