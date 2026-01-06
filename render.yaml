@@ -6,7 +6,7 @@ services:
     region: oregon
     plan: starter
     rootDir: backend
-    buildCommand: cd ../frontend && npm install && npx vite build && cd ../backend && npm install
+    buildCommand: cd ../frontend && npm ci && npx vite build && cd ../backend && npm ci
     startCommand: npm start
     healthCheckPath: /health
     envVars:
