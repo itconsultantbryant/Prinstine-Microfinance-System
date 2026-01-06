@@ -103,25 +103,41 @@ router.post('/login', [
     // Find user - try email first, then username, case-insensitive
     let user;
     try {
-      // Try to find by email (case-insensitive)
-      user = await db.User.findOne({
-        where: {
-          [Op.or]: [
-            { email: { [Op.iLike]: email } }, // PostgreSQL case-insensitive
-            { email: email.toLowerCase() },   // Fallback for SQLite
-            { username: email.toLowerCase() }  // Also allow login with username
-          ]
-        },
-        attributes: { exclude: [] }
-      });
+      const emailLower = email.toLowerCase().trim();
       
-      // If not found with iLike (SQLite doesn't support it), try again
-      if (!user) {
+      // Check database dialect to use appropriate case-insensitive query
+      const isPostgres = db.sequelize.options.dialect === 'postgres';
+      
+      if (isPostgres) {
+        // PostgreSQL: Use iLike for case-insensitive search
         user = await db.User.findOne({
           where: {
             [Op.or]: [
-              { email: email.toLowerCase() },
-              { username: email.toLowerCase() }
+              db.sequelize.where(
+                db.sequelize.fn('LOWER', db.sequelize.col('email')),
+                emailLower
+              ),
+              db.sequelize.where(
+                db.sequelize.fn('LOWER', db.sequelize.col('username')),
+                emailLower
+              )
+            ]
+          },
+          attributes: { exclude: [] }
+        });
+      } else {
+        // SQLite: Use lowercase comparison
+        user = await db.User.findOne({
+          where: {
+            [Op.or]: [
+              db.sequelize.where(
+                db.sequelize.fn('LOWER', db.sequelize.col('email')),
+                emailLower
+              ),
+              db.sequelize.where(
+                db.sequelize.fn('LOWER', db.sequelize.col('username')),
+                emailLower
+              )
             ]
           },
           attributes: { exclude: [] }

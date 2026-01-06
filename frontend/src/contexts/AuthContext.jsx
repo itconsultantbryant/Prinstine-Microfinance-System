@@ -40,17 +40,29 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login with email:', email);
       const response = await apiClient.post('/api/auth/login', { email, password });
-      const { user, token } = response.data.data;
-      setToken(token);
-      setUser(user);
-      localStorage.setItem('token', token);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      return { success: true };
+      console.log('Login response:', response.data);
+      
+      if (response.data.success && response.data.data) {
+        const { user, token } = response.data.data;
+        setToken(token);
+        setUser(user);
+        localStorage.setItem('token', token);
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Login failed'
+        };
+      }
     } catch (error) {
+      console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message: error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Login failed'
       };
     }
   };
