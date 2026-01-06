@@ -100,14 +100,38 @@ router.post('/login', [
     const { email, password } = req.body;
     console.log('Looking for user with email:', email);
 
-    // Find user without branch include first to avoid relationship issues
+    // Find user - try email first, then username, case-insensitive
     let user;
     try {
+      // Try to find by email (case-insensitive)
       user = await db.User.findOne({
-        where: { email },
+        where: {
+          [Op.or]: [
+            { email: { [Op.iLike]: email } }, // PostgreSQL case-insensitive
+            { email: email.toLowerCase() },   // Fallback for SQLite
+            { username: email.toLowerCase() }  // Also allow login with username
+          ]
+        },
         attributes: { exclude: [] }
       });
+      
+      // If not found with iLike (SQLite doesn't support it), try again
+      if (!user) {
+        user = await db.User.findOne({
+          where: {
+            [Op.or]: [
+              { email: email.toLowerCase() },
+              { username: email.toLowerCase() }
+            ]
+          },
+          attributes: { exclude: [] }
+        });
+      }
+      
       console.log('User found:', user ? 'Yes' : 'No');
+      if (user) {
+        console.log('User email:', user.email, 'Username:', user.username);
+      }
     } catch (dbError) {
       console.error('Database error finding user:', dbError);
       console.error('Error stack:', dbError.stack);

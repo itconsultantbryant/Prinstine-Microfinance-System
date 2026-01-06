@@ -151,7 +151,69 @@ db.sequelize.authenticate()
     // Sync database (set force: true only in development to reset tables)
     if (process.env.NODE_ENV === 'development') {
       return db.sequelize.sync({ alter: true });
+    } else {
+      // In production, ensure tables exist but don't alter them
+      return db.sequelize.sync({ alter: false });
     }
+  })
+  .then(async () => {
+    // Check if admin user exists, if not, seed the database
+    const adminExists = await db.User.findOne({
+      where: { email: 'admin@microfinance.com' }
+    });
+    
+    if (!adminExists) {
+      console.log('⚠️  Admin user not found. Seeding database...');
+      try {
+        const seedScript = require('./scripts/seed');
+        // The seed script will run and exit, so we need to handle it differently
+        const bcrypt = require('bcryptjs');
+        
+        // Create branch if it doesn't exist
+        const branch = await db.Branch.findOrCreate({
+          where: { code: 'MB001' },
+          defaults: {
+            name: 'Main Branch',
+            code: 'MB001',
+            address: '123 Main Street',
+            city: 'City',
+            state: 'State',
+            country: 'Country',
+            phone: '+1234567890',
+            email: 'main@microfinance.com',
+            manager_name: 'Branch Manager',
+            is_active: true
+          }
+        });
+
+        // Create admin user
+        const adminPassword = await bcrypt.hash('admin123', 10);
+        await db.User.findOrCreate({
+          where: { email: 'admin@microfinance.com' },
+          defaults: {
+            name: 'Admin User',
+            email: 'admin@microfinance.com',
+            username: 'admin',
+            password: adminPassword,
+            role: 'admin',
+            branch_id: branch[0].id,
+            is_active: true,
+            email_verified_at: new Date()
+          }
+        });
+        
+        console.log('✅ Database seeded successfully!');
+        console.log('📧 Default admin credentials:');
+        console.log('   Email: admin@microfinance.com');
+        console.log('   Password: admin123');
+      } catch (seedError) {
+        console.error('❌ Seeding failed:', seedError);
+        // Don't exit - continue with server start
+      }
+    } else {
+      console.log('✅ Admin user exists. Database ready.');
+    }
+    
     return Promise.resolve();
   })
   .then(() => {
