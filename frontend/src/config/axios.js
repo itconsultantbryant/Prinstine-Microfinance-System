@@ -3,6 +3,8 @@ import axios from 'axios';
 // Get API URL from environment variable or use default
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+console.log('API Client initialized with URL:', API_URL);
+
 // Create axios instance with base URL
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -10,6 +12,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor to add auth token

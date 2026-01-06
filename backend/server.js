@@ -167,19 +167,17 @@ db.sequelize.authenticate()
   })
   .then(async () => {
     // Check if admin user exists, if not, seed the database
-    const adminExists = await db.User.findOne({
+    let adminExists = await db.User.findOne({
       where: { email: 'admin@microfinance.com' }
     });
     
     if (!adminExists) {
       console.log('⚠️  Admin user not found. Seeding database...');
       try {
-        const seedScript = require('./scripts/seed');
-        // The seed script will run and exit, so we need to handle it differently
         const bcrypt = require('bcryptjs');
         
         // Create branch if it doesn't exist
-        const branch = await db.Branch.findOrCreate({
+        const [branch] = await db.Branch.findOrCreate({
           where: { code: 'MB001' },
           defaults: {
             name: 'Main Branch',
@@ -197,7 +195,7 @@ db.sequelize.authenticate()
 
         // Create admin user
         const adminPassword = await bcrypt.hash('admin123', 10);
-        await db.User.findOrCreate({
+        const [adminUser, created] = await db.User.findOrCreate({
           where: { email: 'admin@microfinance.com' },
           defaults: {
             name: 'Admin User',
@@ -205,22 +203,45 @@ db.sequelize.authenticate()
             username: 'admin',
             password: adminPassword,
             role: 'admin',
-            branch_id: branch[0].id,
+            branch_id: branch.id,
             is_active: true,
             email_verified_at: new Date()
           }
         });
         
-        console.log('✅ Database seeded successfully!');
-        console.log('📧 Default admin credentials:');
-        console.log('   Email: admin@microfinance.com');
-        console.log('   Password: admin123');
+        if (created) {
+          console.log('✅ Admin user created successfully!');
+        } else {
+          console.log('✅ Admin user already exists.');
+        }
+        
+        // Verify the admin user was created
+        adminExists = await db.User.findOne({
+          where: { email: 'admin@microfinance.com' }
+        });
+        
+        if (adminExists) {
+          console.log('✅ Admin user verified in database.');
+          console.log('📧 Default admin credentials:');
+          console.log('   Email: admin@microfinance.com');
+          console.log('   Password: admin123');
+          console.log('   User ID:', adminExists.id);
+          console.log('   Is Active:', adminExists.is_active);
+        } else {
+          console.error('❌ Admin user creation failed - user not found after creation');
+        }
       } catch (seedError) {
         console.error('❌ Seeding failed:', seedError);
+        console.error('Error stack:', seedError.stack);
         // Don't exit - continue with server start
       }
     } else {
       console.log('✅ Admin user exists. Database ready.');
+      console.log('📧 Admin credentials:');
+      console.log('   Email: admin@microfinance.com');
+      console.log('   Password: admin123');
+      console.log('   User ID:', adminExists.id);
+      console.log('   Is Active:', adminExists.is_active);
     }
     
     return Promise.resolve();
