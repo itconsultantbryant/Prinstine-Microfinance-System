@@ -39,8 +39,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 // CORS configuration
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',')
+// If CORS_ORIGIN is "*", allow all origins
+const allowAllOrigins = process.env.CORS_ORIGIN === '*' || process.env.CORS_ORIGIN === '"*"';
+
+const allowedOrigins = process.env.CORS_ORIGIN && !allowAllOrigins
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:3000', 'http://localhost:5000'];
 
 // Add Render URLs if in production
@@ -55,7 +58,7 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
   }
-  // Allow all Render domains in production
+  // Allow all Render domains in production (regex pattern)
   allowedOrigins.push(/^https:\/\/.*\.onrender\.com$/);
 }
 
@@ -63,6 +66,11 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
+    // If CORS_ORIGIN is "*", allow all origins
+    if (allowAllOrigins) {
+      return callback(null, true);
+    }
     
     // Check if origin matches any allowed origin
     const isAllowed = allowedOrigins.some(allowed => {
@@ -75,11 +83,12 @@ app.use(cors({
     });
     
     // In development, allow all origins
-    if (process.env.NODE_ENV === 'development' || isAllowed || process.env.CORS_ORIGIN === '*') {
+    if (process.env.NODE_ENV === 'development' || isAllowed) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
       console.log('Allowed origins:', allowedOrigins);
+      console.log('CORS_ORIGIN env:', process.env.CORS_ORIGIN);
       callback(new Error('Not allowed by CORS'));
     }
   },
