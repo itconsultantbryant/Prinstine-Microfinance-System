@@ -105,44 +105,46 @@ router.post('/login', [
     const { email, password } = req.body;
     console.log('Looking for user with email:', email);
 
-    // Find user - try email first, then username, case-insensitive
+    // Find user - simplified approach
     let user;
     try {
       const emailLower = email.toLowerCase().trim();
       
-      // Simple approach: Get all users and filter in memory (for small datasets)
-      // Or use a simpler query that works for both PostgreSQL and SQLite
-      const allUsers = await db.User.findAll({
+      // Try to find user by email or username (case-insensitive)
+      // First, try exact match
+      user = await db.User.findOne({
+        where: {
+          [Op.or]: [
+            { email: emailLower },
+            { username: emailLower }
+          ]
+        },
         attributes: { exclude: [] }
       });
       
-      // Find user by email or username (case-insensitive)
-      user = allUsers.find(u => 
-        u.email?.toLowerCase() === emailLower || 
-        u.username?.toLowerCase() === emailLower
-      );
-      
-      // If not found, try direct database query as fallback
+      // If not found, try case-insensitive search by getting all and filtering
       if (!user) {
-        user = await db.User.findOne({
-          where: {
-            [Op.or]: [
-              { email: emailLower },
-              { username: emailLower }
-            ]
-          },
+        const allUsers = await db.User.findAll({
           attributes: { exclude: [] }
         });
+        
+        user = allUsers.find(u => 
+          (u.email && u.email.toLowerCase() === emailLower) || 
+          (u.username && u.username.toLowerCase() === emailLower)
+        );
       }
       
       console.log('User found:', user ? 'Yes' : 'No');
       if (user) {
-        console.log('User email:', user.email, 'Username:', user.username, 'Has password:', !!user.password);
+        console.log('User email:', user.email, 'Username:', user.username, 'Has password:', !!user.password, 'Is active:', user.is_active);
       } else {
         console.log('No user found with email/username:', emailLower);
-        // List all users for debugging
-        const allUserEmails = allUsers.map(u => u.email).filter(Boolean);
-        console.log('Available user emails:', allUserEmails);
+        // List first 5 users for debugging
+        const sampleUsers = await db.User.findAll({
+          limit: 5,
+          attributes: ['id', 'email', 'username', 'role']
+        });
+        console.log('Sample users in database:', sampleUsers.map(u => ({ email: u.email, username: u.username, role: u.role })));
       }
     } catch (dbError) {
       console.error('Database error finding user:', dbError);
@@ -228,7 +230,7 @@ router.post('/login', [
     }
 
     console.log('Login successful for:', user.email);
-    res.json({
+    const responseData = {
       success: true,
       message: 'Login successful',
       data: {
@@ -243,7 +245,10 @@ router.post('/login', [
         },
         token
       }
-    });
+    };
+    
+    console.log('Sending response:', JSON.stringify(responseData, null, 2));
+    res.json(responseData);
   } catch (error) {
     console.error('=== LOGIN ERROR ===');
     console.error('Error message:', error.message);
@@ -287,4 +292,3 @@ router.post('/logout', authenticate, (req, res) => {
 });
 
 module.exports = router;
-
