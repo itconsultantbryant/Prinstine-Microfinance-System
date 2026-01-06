@@ -30,8 +30,9 @@ services:
       sizeGB: 1
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: microfinance-frontend
+    env: static
     region: oregon
     plan: starter
     rootDir: frontend
