@@ -23,7 +23,15 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        sync: false
+        fromService:
+          name: microfinance-frontend
+          type: web
+          property: host
+      - key: FRONTEND_URL
+        fromService:
+          name: microfinance-frontend
+          type: web
+          property: host
     disk:
       name: microfinance-uploads
       mountPath: /opt/render/project/src/backend/uploads
@@ -38,7 +46,10 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://microfinance-backend.onrender.com
+        fromService:
+          name: microfinance-backend
+          type: web
+          property: host
 
 databases:
   - name: microfinance-db
