@@ -55,21 +55,38 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
   }
-  // Add common Render static site patterns
-  allowedOrigins.push('https://*.onrender.com');
+  // Allow all Render domains in production
+  allowedOrigins.push(/^https:\/\/.*\.onrender\.com$/);
 }
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    
+    // Check if origin matches any allowed origin
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development' || isAllowed || process.env.CORS_ORIGIN === '*') {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 app.use(morgan('dev'));
 app.use(express.json());
