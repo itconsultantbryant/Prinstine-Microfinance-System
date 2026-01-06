@@ -110,39 +110,25 @@ router.post('/login', [
     try {
       const emailLower = email.toLowerCase().trim();
       
-      // Check database dialect to use appropriate case-insensitive query
-      const isPostgres = db.sequelize.options.dialect === 'postgres';
+      // Simple approach: Get all users and filter in memory (for small datasets)
+      // Or use a simpler query that works for both PostgreSQL and SQLite
+      const allUsers = await db.User.findAll({
+        attributes: { exclude: [] }
+      });
       
-      if (isPostgres) {
-        // PostgreSQL: Use iLike for case-insensitive search
+      // Find user by email or username (case-insensitive)
+      user = allUsers.find(u => 
+        u.email?.toLowerCase() === emailLower || 
+        u.username?.toLowerCase() === emailLower
+      );
+      
+      // If not found, try direct database query as fallback
+      if (!user) {
         user = await db.User.findOne({
           where: {
             [Op.or]: [
-              db.sequelize.where(
-                db.sequelize.fn('LOWER', db.sequelize.col('email')),
-                emailLower
-              ),
-              db.sequelize.where(
-                db.sequelize.fn('LOWER', db.sequelize.col('username')),
-                emailLower
-              )
-            ]
-          },
-          attributes: { exclude: [] }
-        });
-      } else {
-        // SQLite: Use lowercase comparison
-        user = await db.User.findOne({
-          where: {
-            [Op.or]: [
-              db.sequelize.where(
-                db.sequelize.fn('LOWER', db.sequelize.col('email')),
-                emailLower
-              ),
-              db.sequelize.where(
-                db.sequelize.fn('LOWER', db.sequelize.col('username')),
-                emailLower
-              )
+              { email: emailLower },
+              { username: emailLower }
             ]
           },
           attributes: { exclude: [] }
@@ -151,7 +137,12 @@ router.post('/login', [
       
       console.log('User found:', user ? 'Yes' : 'No');
       if (user) {
-        console.log('User email:', user.email, 'Username:', user.username);
+        console.log('User email:', user.email, 'Username:', user.username, 'Has password:', !!user.password);
+      } else {
+        console.log('No user found with email/username:', emailLower);
+        // List all users for debugging
+        const allUserEmails = allUsers.map(u => u.email).filter(Boolean);
+        console.log('Available user emails:', allUserEmails);
       }
     } catch (dbError) {
       console.error('Database error finding user:', dbError);

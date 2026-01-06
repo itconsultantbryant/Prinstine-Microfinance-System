@@ -41,28 +41,58 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       console.log('Attempting login with email:', email);
-      const response = await apiClient.post('/api/auth/login', { email, password });
-      console.log('Login response:', response.data);
+      console.log('API URL:', apiClient.defaults.baseURL);
       
-      if (response.data.success && response.data.data) {
+      const response = await apiClient.post('/api/auth/login', { email, password });
+      console.log('Login response status:', response.status);
+      console.log('Login response data:', JSON.stringify(response.data, null, 2));
+      
+      if (response.data && response.data.success && response.data.data) {
         const { user, token } = response.data.data;
+        
+        if (!token) {
+          console.error('No token in response');
+          return {
+            success: false,
+            message: 'Login failed: No token received'
+          };
+        }
+        
+        if (!user) {
+          console.error('No user in response');
+          return {
+            success: false,
+            message: 'Login failed: No user data received'
+          };
+        }
+        
         setToken(token);
         setUser(user);
         localStorage.setItem('token', token);
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log('Login successful, user set:', user.email);
         return { success: true };
       } else {
+        console.error('Invalid response structure:', response.data);
         return {
           success: false,
-          message: response.data.message || 'Login failed'
+          message: response.data?.message || 'Login failed: Invalid response'
         };
       }
     } catch (error) {
       console.error('Login error:', error);
       console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.message);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.[0]?.msg || 
+                          error.message || 
+                          'Login failed';
+      
       return {
         success: false,
-        message: error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Login failed'
+        message: errorMessage
       };
     }
   };
