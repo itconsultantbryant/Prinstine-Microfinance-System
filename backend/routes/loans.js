@@ -722,7 +722,10 @@ router.post('/:id/repay', authenticate, [
       if (savingsAccounts.length > 0) {
         // Client has savings - distribute interest
         // Personal Interest Payment: Full interest goes to client's savings
-        let personalInterestTransactionNumber = `TXN${String(await db.Transaction.count() + 1).padStart(8, '0')}`;
+        const currentTransactionCount = await db.Transaction.count();
+        let transactionCounter = currentTransactionCount + 1;
+        
+        const personalInterestTransactionNumber = `TXN${String(transactionCounter++).padStart(8, '0')}`;
         const personalInterestTransaction = await db.Transaction.create({
           transaction_number: personalInterestTransactionNumber,
           client_id: loan.client_id,
@@ -757,7 +760,7 @@ router.post('/:id/repay', authenticate, [
           for (let i = 0; i < allSavingsAccounts.length; i++) {
             const account = allSavingsAccounts[i];
             // Get next transaction number
-            const generalInterestTransactionNumber = `TXN${String(await db.Transaction.count() + 1).padStart(8, '0')}`;
+            const generalInterestTransactionNumber = `TXN${String(transactionCounter++).padStart(8, '0')}`;
             
             // Create general interest transaction for each account
             await db.Transaction.create({
