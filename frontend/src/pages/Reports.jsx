@@ -35,6 +35,15 @@ const Reports = () => {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [historicalData, setHistoricalData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [financialSummary, setFinancialSummary] = useState({
+    totalSavings: 0,
+    totalPersonalInterest: 0,
+    totalGeneralInterest: 0,
+    totalOutstandingDues: 0,
+    totalOutstandingLoans: 0,
+    grandTotal: 0,
+    overallTotalSavings: 0
+  });
 
   // Reset chart key when switching report types to avoid canvas reuse errors
   useEffect(() => {
@@ -45,15 +54,71 @@ const Reports = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchHistoricalData();
+    fetchFinancialSummary();
     
     // Refresh data every 30 seconds for real-time updates
     const interval = setInterval(() => {
       fetchDashboardData();
       fetchHistoricalData();
+      fetchFinancialSummary();
     }, 30000);
     
     return () => clearInterval(interval);
   }, []);
+
+  const fetchFinancialSummary = async () => {
+    try {
+      const [savingsRes, transactionsRes, clientsRes, loansRes] = await Promise.all([
+        apiClient.get('/api/savings'),
+        apiClient.get('/api/transactions', { params: { limit: 1000 } }),
+        apiClient.get('/api/clients'),
+        apiClient.get('/api/loans')
+      ]);
+
+      const savings = savingsRes.data.data.savingsAccounts || [];
+      const transactions = transactionsRes.data.data.transactions || [];
+      const clients = clientsRes.data.data.clients || [];
+      const loans = loansRes.data.data.loans || [];
+
+      const totalSavings = savings.reduce((sum, acc) => 
+        sum + parseFloat(acc.balance || 0), 0
+      );
+
+      const totalPersonalInterest = transactions
+        .filter(t => t.type === 'personal_interest_payment')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+      const totalGeneralInterest = transactions
+        .filter(t => t.type === 'general_interest')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+      const totalOutstandingDues = clients
+        .filter(c => parseFloat(c.total_dues || 0) < 0)
+        .reduce((sum, c) => sum + Math.abs(parseFloat(c.total_dues || 0)), 0);
+
+      const totalOutstandingLoans = loans.reduce((sum, loan) => 
+        sum + parseFloat(loan.outstanding_balance || 0), 0
+      );
+
+      // Grand Total = Total Savings + Personal Interest + General Interest - Outstanding Dues
+      const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest - totalOutstandingDues;
+      
+      // Overall Total Savings = Grand Total - Outstanding Loans
+      const overallTotalSavings = grandTotal - totalOutstandingLoans;
+
+      setFinancialSummary({
+        totalSavings,
+        totalPersonalInterest,
+        totalGeneralInterest,
+        totalOutstandingDues,
+        totalOutstandingLoans,
+        grandTotal,
+        overallTotalSavings
+      });
+    } catch (error) {
+      console.error('Failed to fetch financial summary:', error);
+    }
+  };
 
   const fetchHistoricalData = async () => {
     try {
@@ -177,6 +242,51 @@ const Reports = () => {
       {/* Financial Reports */}
       {reportType === 'financial' && (
         <div className="row">
+          {/* Financial Summary Cards */}
+          <div className="col-md-12 mb-4">
+            <div className="row g-3">
+              <div className="col-md-3">
+                <div className="card bg-primary text-white">
+                  <div className="card-body">
+                    <h6 className="card-subtitle mb-2 text-white-50">Total Savings</h6>
+                    <h3 className="card-title mb-0">
+                      ${financialSummary.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="card bg-success text-white">
+                  <div className="card-body">
+                    <h6 className="card-subtitle mb-2 text-white-50">Personal Interest</h6>
+                    <h3 className="card-title mb-0">
+                      ${financialSummary.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="card bg-info text-white">
+                  <div className="card-body">
+                    <h6 className="card-subtitle mb-2 text-white-50">General Interest</h6>
+                    <h3 className="card-title mb-0">
+                      ${financialSummary.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="card bg-warning text-white">
+                  <div className="card-body">
+                    <h6 className="card-subtitle mb-2 text-white-50">Grand Total</h6>
+                    <h3 className="card-title mb-0">
+                      ${financialSummary.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="col-md-12 mb-4">
             <div className="card">
               <div className="card-header">

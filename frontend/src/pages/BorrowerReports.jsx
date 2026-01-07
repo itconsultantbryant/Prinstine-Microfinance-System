@@ -59,13 +59,23 @@ const BorrowerReports = () => {
 
       // Calculate dues information
       const totalDues = client ? parseFloat(client.total_dues || 0) : 0;
-      const yearlyDues = Math.abs(totalDues);
+      const outstandingDues = Math.abs(totalDues < 0 ? totalDues : 0); // Only negative values are outstanding
+      const yearlyDues = outstandingDues;
       const monthlyDues = yearlyDues / 12;
       const duesPayments = allTransactions
         .filter(t => t.type === 'due_payment')
         .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
-      const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest;
+      // Calculate outstanding loans
+      const outstandingLoans = loans.reduce((sum, loan) => 
+        sum + parseFloat(loan.outstanding_balance || 0), 0
+      );
+
+      // Grand Total = Total Savings + Personal Interest + General Interest - Outstanding Dues
+      const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest - outstandingDues;
+      
+      // Overall Total Savings = Grand Total - Outstanding Loans
+      const overallTotalSavings = grandTotal - outstandingLoans;
 
       setReportData({
         loans,
@@ -76,6 +86,9 @@ const BorrowerReports = () => {
         totalPersonalInterest,
         totalGeneralInterest,
         grandTotal,
+        overallTotalSavings,
+        outstandingDues: outstandingDues,
+        outstandingLoans: outstandingLoans,
         totalDues: totalDues,
         yearlyDues: yearlyDues,
         monthlyDues: monthlyDues,
@@ -113,7 +126,7 @@ const BorrowerReports = () => {
             <div className="card-body">
               <h6 className="card-subtitle mb-2 text-white-50">Total Savings</h6>
               <h3 className="card-title mb-0">
-                ${reportData.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${(reportData.overallTotalSavings || reportData.totalSavings).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
           </div>
@@ -158,7 +171,7 @@ const BorrowerReports = () => {
               <div className="card-body">
                 <h6 className="card-subtitle mb-2 text-white-50">Outstanding Dues</h6>
                 <h3 className="card-title mb-0">
-                  ${reportData.totalDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(reportData.outstandingDues || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h3>
               </div>
             </div>
