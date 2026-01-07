@@ -512,6 +512,51 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Clients with Dues (Admin/Finance only) */}
+      {(user?.role === ROLES.ADMIN || user?.role === ROLES.FINANCE || user?.role === 'general_manager') && clientsWithDues.length > 0 && (
+        <div className="card mb-4">
+          <div className="card-header bg-danger text-white">
+            <h5 className="mb-0">
+              <i className="fas fa-calendar-check me-2"></i>Clients with Outstanding Dues
+            </h5>
+          </div>
+          <div className="card-body">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Client Number</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Outstanding Dues</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientsWithDues.map((client) => (
+                    <tr key={client.id}>
+                      <td><strong>{client.client_number}</strong></td>
+                      <td>{client.first_name} {client.last_name}</td>
+                      <td>{client.email}</td>
+                      <td>
+                        <strong className="text-danger">
+                          ${Math.abs(parseFloat(client.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </td>
+                      <td>
+                        <Link to={`/dues`} className="btn btn-sm btn-outline-primary">
+                          <i className="fas fa-money-bill-wave me-1"></i>Manage
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
