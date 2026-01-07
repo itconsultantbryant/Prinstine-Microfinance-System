@@ -124,9 +124,9 @@ const BorrowerReports = () => {
         <div className="col-md-3">
           <div className="card bg-primary text-white">
             <div className="card-body">
-              <h6 className="card-subtitle mb-2 text-white-50">Total Savings</h6>
+              <h6 className="card-subtitle mb-2 text-white-50">Savings</h6>
               <h3 className="card-title mb-0">
-                ${(reportData.overallTotalSavings || reportData.totalSavings).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${reportData.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
           </div>
@@ -158,6 +158,22 @@ const BorrowerReports = () => {
               <h3 className="card-title mb-0">
                 ${reportData.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
+              <small className="text-white-50">Savings + Personal + General - Dues</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grand Total Savings Card */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-12">
+          <div className="card bg-success text-white">
+            <div className="card-body text-center">
+              <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings</h6>
+              <h2 className="card-title mb-0">
+                ${reportData.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h2>
+              <small className="text-white-50">Grand Total - Outstanding Loans</small>
             </div>
           </div>
         </div>
