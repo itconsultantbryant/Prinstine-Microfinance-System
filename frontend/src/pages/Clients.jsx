@@ -3,6 +3,7 @@ import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Clients = () => {
   const { user } = useAuth();
@@ -184,7 +185,7 @@ const Clients = () => {
     });
     // Set profile image preview if exists
     if (client.profile_image) {
-      setProfileImagePreview(`http://localhost:5000/uploads/${client.profile_image}`);
+      setProfileImagePreview(getImageUrl(client.profile_image));
     } else {
       setProfileImagePreview(null);
     }

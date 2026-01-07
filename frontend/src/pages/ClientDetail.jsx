@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -144,12 +145,15 @@ const ClientDetail = () => {
             <div className="card">
               <div className="card-body text-center">
                 <img 
-                  src={`http://localhost:5000/uploads/${client.profile_image}`}
+                  src={getImageUrl(client.profile_image)}
                   alt={`${client.first_name} ${client.last_name}`}
                   className="rounded-circle mb-3"
                   style={{ width: '200px', height: '200px', objectFit: 'cover', border: '4px solid #dee2e6' }}
                   onError={(e) => {
                     e.target.style.display = 'none';
+                    // Show fallback icon
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.classList.remove('d-none');
                   }}
                 />
                 <div className="rounded-circle mx-auto mb-3 d-none d-flex align-items-center justify-content-center bg-light" style={{ width: '200px', height: '200px', border: '4px solid #dee2e6' }}>
