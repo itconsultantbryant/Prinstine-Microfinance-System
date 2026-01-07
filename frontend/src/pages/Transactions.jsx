@@ -245,12 +245,12 @@ const Transactions = () => {
                         <option value="loan_disbursement">Loan Disbursement</option>
                         <option value="fee">Fee</option>
                         <option value="interest">Interest</option>
-                        <option value="transfer">Transfer</option>
-                        <option value="push back">Push Back</option>
-                        <option value="personal interest payment">Personal Interest Payment</option>
-                        <option value="general interest payment">General Interest Payment</option>
-                        <option value="due payment">Due Payment</option>
                         <option value="penalty">Penalty</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="push_back">Push Back</option>
+                        <option value="personal_interest_payment">Personal Interest Payment</option>
+                        <option value="general_interest">General Interest</option>
+                        <option value="due_payment">Due Payment</option>
                       </select>
                     </div>
                     <div className="col-md-6 mb-3">
