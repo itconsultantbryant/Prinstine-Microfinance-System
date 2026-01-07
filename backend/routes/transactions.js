@@ -23,6 +23,9 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Get limit from query params, default to 100
+    const limit = parseInt(req.query.limit) || 100;
+    
     const transactions = await db.Transaction.findAll({
       where: whereClause,
       include: [
@@ -31,7 +34,7 @@ router.get('/', async (req, res) => {
         { model: db.Branch, as: 'branch', required: false }
       ],
       order: [['createdAt', 'DESC']],
-      limit: 100
+      limit: limit
     });
 
     res.json({
