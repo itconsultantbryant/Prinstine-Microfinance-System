@@ -19,6 +19,7 @@ import ApprovalCenter from './pages/ApprovalCenter';
 import Accounting from './pages/Accounting';
 import Reports from './pages/Reports';
 import BorrowerReports from './pages/BorrowerReports';
+import Dues from './pages/Dues';
 import Staff from './pages/Staff';
 import Payroll from './pages/Payroll';
 import Users from './pages/Users';
@@ -181,6 +182,16 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <BorrowerReports />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/dues"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Dues />
                 </Layout>
               </PrivateRoute>
             }

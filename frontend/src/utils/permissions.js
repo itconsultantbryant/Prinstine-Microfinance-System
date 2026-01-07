@@ -280,6 +280,14 @@ export const getMenuItemsForRole = (userRole) => {
       roles: ['borrower'] 
     },
     
+    // Dues Management - Admin and Finance
+    { 
+      path: '/dues', 
+      icon: 'fas fa-calendar-check', 
+      label: 'Dues', 
+      roles: ['admin', 'finance', 'general_manager'] 
+    },
+    
     // Staff Management - HR and Admin
     { 
       path: '/staff', 

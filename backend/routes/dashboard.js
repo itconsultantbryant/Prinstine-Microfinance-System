@@ -154,6 +154,23 @@ router.get('/', authenticate, async (req, res) => {
         console.error('Error calculating total collections:', error);
       }
 
+      // Get clients with outstanding dues (for admin dashboard)
+      let clientsWithDues = [];
+      if (userRole === 'admin' || userRole === 'finance' || userRole === 'general_manager') {
+        try {
+          clientsWithDues = await db.Client.findAll({
+            where: {
+              total_dues: { [Op.lt]: 0 } // Negative values indicate outstanding dues
+            },
+            attributes: ['id', 'client_number', 'first_name', 'last_name', 'email', 'total_dues'],
+            order: [['total_dues', 'ASC']], // Most negative first (most outstanding)
+            limit: 10
+          });
+        } catch (error) {
+          console.error('Error fetching clients with dues:', error);
+        }
+      }
+
     res.json({
       success: true,
       data: {
@@ -167,7 +184,8 @@ router.get('/', authenticate, async (req, res) => {
           totalCollections: totalCollections
         },
         recentLoans,
-        recentTransactions
+        recentTransactions,
+        clientsWithDues: clientsWithDues || []
       }
     });
   } catch (error) {

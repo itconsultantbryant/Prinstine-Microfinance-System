@@ -107,7 +107,10 @@ const Transactions = () => {
       loan_payment: 'primary',
       loan_disbursement: 'info',
       fee: 'danger',
-      interest: 'secondary'
+      interest: 'secondary',
+      personal_interest_payment: 'success',
+      general_interest: 'info',
+      due_payment: 'primary'
     };
     return badges[type] || 'secondary';
   };

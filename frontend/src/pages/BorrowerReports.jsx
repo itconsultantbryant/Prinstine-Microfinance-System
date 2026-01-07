@@ -26,15 +26,18 @@ const BorrowerReports = () => {
       setLoading(true);
       
       // Fetch all data in parallel
-      const [loansRes, savingsRes, transactionsRes] = await Promise.all([
+      const [loansRes, savingsRes, transactionsRes, clientsRes] = await Promise.all([
         apiClient.get('/api/loans'),
         apiClient.get('/api/savings'),
-        apiClient.get('/api/transactions', { params: { limit: 1000 } }) // Get more transactions for reports
+        apiClient.get('/api/transactions', { params: { limit: 1000 } }), // Get more transactions for reports
+        apiClient.get('/api/clients') // Get client data for dues
       ]);
 
       const loans = loansRes.data.data.loans || [];
       const savings = savingsRes.data.data.savingsAccounts || [];
       const allTransactions = transactionsRes.data.data.transactions || [];
+      const clients = clientsRes.data.data.clients || [];
+      const client = clients.length > 0 ? clients[0] : null; // Borrower should only have one client record
 
       // Filter loan payment transactions
       const loanPayments = allTransactions.filter(t => 
@@ -54,6 +57,14 @@ const BorrowerReports = () => {
         .filter(t => t.type === 'general_interest')
         .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
+      // Calculate dues information
+      const totalDues = client ? parseFloat(client.total_dues || 0) : 0;
+      const yearlyDues = Math.abs(totalDues);
+      const monthlyDues = yearlyDues / 12;
+      const duesPayments = allTransactions
+        .filter(t => t.type === 'due_payment')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
       const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest;
 
       setReportData({
@@ -64,7 +75,11 @@ const BorrowerReports = () => {
         totalSavings,
         totalPersonalInterest,
         totalGeneralInterest,
-        grandTotal
+        grandTotal,
+        totalDues: totalDues,
+        yearlyDues: yearlyDues,
+        monthlyDues: monthlyDues,
+        duesPayments: duesPayments
       });
       setLoading(false);
     } catch (error) {
@@ -134,6 +149,42 @@ const BorrowerReports = () => {
           </div>
         </div>
       </div>
+
+      {/* Dues Information */}
+      {reportData.totalDues !== undefined && (
+        <div className="row g-3 mb-4">
+          <div className="col-md-4">
+            <div className="card bg-danger text-white">
+              <div className="card-body">
+                <h6 className="card-subtitle mb-2 text-white-50">Outstanding Dues</h6>
+                <h3 className="card-title mb-0">
+                  ${reportData.totalDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="card bg-secondary text-white">
+              <div className="card-body">
+                <h6 className="card-subtitle mb-2 text-white-50">Total Yearly Dues</h6>
+                <h3 className="card-title mb-0">
+                  ${reportData.yearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="card bg-info text-white">
+              <div className="card-body">
+                <h6 className="card-subtitle mb-2 text-white-50">Monthly Dues</h6>
+                <h3 className="card-title mb-0">
+                  ${reportData.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loans Summary */}
       <div className="card mb-4">

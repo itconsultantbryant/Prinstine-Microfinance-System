@@ -147,6 +147,12 @@ module.exports = (sequelize) => {
     profile_image: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    total_dues: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0,
+      allowNull: false,
+      comment: 'Total yearly dues for the client (starts as negative when set)'
     }
   }, {
     tableName: 'clients',

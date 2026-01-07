@@ -106,6 +106,7 @@ const Dashboard = () => {
   };
   const recentLoans = stats?.recentLoans || [];
   const recentTransactions = stats?.recentTransactions || [];
+  const clientsWithDues = stats?.clientsWithDues || [];
 
   // Chart data for portfolio trend - using real historical data
   const portfolioData = historicalData ? {

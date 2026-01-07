@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 // Create transaction
 router.post('/', [
   body('client_id').isInt().withMessage('Client ID is required'),
-  body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest']).withMessage('Valid transaction type is required'),
+  body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest', 'due_payment']).withMessage('Valid transaction type is required'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount is required'),
   body('description').optional().isString()
 ], async (req, res) => {
@@ -77,6 +77,18 @@ router.post('/', [
       transaction_date: req.body.transaction_date || new Date(),
       created_by: req.userId
     });
+
+    // Handle due payment - reduce client's total_dues
+    if (req.body.type === 'due_payment' && req.body.client_id) {
+      const client = await db.Client.findByPk(req.body.client_id);
+      if (client) {
+        const paymentAmount = parseFloat(req.body.amount || 0);
+        const currentDues = parseFloat(client.total_dues || 0);
+        // Add payment amount to negative dues (reduces the negative balance)
+        const newDues = Math.min(0, currentDues + paymentAmount);
+        await client.update({ total_dues: newDues });
+      }
+    }
 
     // Get client for receipt
     const client = await db.Client.findByPk(req.body.client_id);

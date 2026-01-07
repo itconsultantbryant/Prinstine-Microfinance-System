@@ -188,6 +188,15 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
       profileImagePath = `clients/${req.file.filename}`;
     }
 
+    // Handle total_dues - if provided, set as negative
+    let totalDues = 0;
+    if (req.body.total_dues && req.body.total_dues !== '') {
+      const duesAmount = parseFloat(req.body.total_dues);
+      if (!isNaN(duesAmount) && duesAmount > 0) {
+        totalDues = -Math.abs(duesAmount); // Set as negative
+      }
+    }
+
     // Create client
     let client;
     try {
@@ -201,7 +210,8 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
         branch_id: req.body.branch_id && req.body.branch_id !== '' ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
         status: req.body.status || 'active',
         kyc_status: req.body.kyc_status || 'pending',
-        profile_image: profileImagePath
+        profile_image: profileImagePath,
+        total_dues: totalDues
       });
       console.log('Client created successfully:', client.id);
     } catch (createError) {

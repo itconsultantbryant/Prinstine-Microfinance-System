@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const addTotalDuesColumn = require('./add-total-dues-column');
 
 async function migrate() {
   try {
@@ -6,6 +7,14 @@ async function migrate() {
     
     // Sync database schema
     await db.sequelize.sync({ alter: true });
+    
+    // Run total dues column migration
+    console.log('🔄 Running total dues column migration...');
+    try {
+      await addTotalDuesColumn();
+    } catch (duesMigrationError) {
+      console.warn('⚠️  Total dues migration warning:', duesMigrationError.message);
+    }
     
     // Run loan enhancement fields migration
     console.log('🔄 Running loan enhancement fields migration...');

@@ -38,7 +38,8 @@ const Clients = () => {
     tax_number: '',
     monthly_income: '',
     income_currency: 'USD',
-    branch_id: ''
+    branch_id: '',
+    total_dues: ''
   });
   const [profileImage, setProfileImage] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
@@ -143,7 +144,8 @@ const Clients = () => {
         tax_number: '',
         monthly_income: '',
         income_currency: 'USD',
-        branch_id: ''
+        branch_id: '',
+        total_dues: ''
       });
       setProfileImage(null);
       setProfileImagePreview(null);
@@ -180,6 +182,7 @@ const Clients = () => {
       monthly_income: client.monthly_income || '',
       income_currency: client.income_currency || 'USD',
       branch_id: client.branch_id || '',
+      total_dues: client.total_dues || '',
       status: client.status || 'active',
       kyc_status: client.kyc_status || 'pending'
     });
@@ -673,6 +676,28 @@ const Clients = () => {
                           value={formData.tax_number}
                           onChange={(e) => setFormData({ ...formData, tax_number: e.target.value })}
                         />
+                      </div>
+                    </div>
+
+                    {/* Dues Information */}
+                    <h6 className="mb-3 text-primary">
+                      <i className="fas fa-calendar-check me-2"></i>Annual Dues
+                    </h6>
+                    <div className="row g-3 mb-4">
+                      <div className="col-md-6">
+                        <label className="form-label">Total Yearly Dues</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          step="0.01"
+                          min="0"
+                          value={formData.total_dues}
+                          onChange={(e) => setFormData({ ...formData, total_dues: e.target.value })}
+                          placeholder="Enter total yearly dues amount"
+                        />
+                        <small className="text-muted">
+                          This will be set as negative balance when client is created. Monthly payments will reduce it gradually.
+                        </small>
                       </div>
                     </div>
                   </div>
