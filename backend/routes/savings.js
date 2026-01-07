@@ -104,13 +104,38 @@ router.post('/', [
     const accountCount = await db.SavingsAccount.count();
     const accountNumber = `SAV${String(accountCount + 1).padStart(8, '0')}`;
 
+    // Validate account_type against ENUM values
+    const validAccountTypes = ['regular', 'fixed', 'joint'];
+    const accountType = req.body.account_type;
+    if (!validAccountTypes.includes(accountType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid account type. Must be one of: ${validAccountTypes.join(', ')}`
+      });
+    }
+
+    // Parse interest_rate if provided
+    let interestRate = 0;
+    if (req.body.interest_rate && req.body.interest_rate !== '') {
+      interestRate = parseFloat(req.body.interest_rate);
+      if (isNaN(interestRate) || interestRate < 0 || interestRate > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Interest rate must be a number between 0 and 100'
+        });
+      }
+    }
+
     const savingsAccount = await db.SavingsAccount.create({
-      ...req.body,
+      client_id: parseInt(req.body.client_id),
+      account_type: accountType,
       account_number: accountNumber,
-      balance: req.body.initial_deposit || 0,
-      branch_id: req.body.branch_id || req.user?.branch_id || null,
+      balance: req.body.initial_deposit ? parseFloat(req.body.initial_deposit) : 0,
+      interest_rate: interestRate,
+      branch_id: req.body.branch_id && req.body.branch_id !== '' ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'active',
-      created_by: req.userId
+      created_by: req.userId,
+      opening_date: req.body.opening_date || new Date()
     });
 
     res.status(201).json({
@@ -120,10 +145,38 @@ router.post('/', [
     });
   } catch (error) {
     console.error('Create savings account error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', req.body);
+    
+    // Handle specific database errors
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map(e => ({ param: e.path, msg: e.message }))
+      });
+    }
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Account number already exists',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid client or branch reference',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Failed to create savings account',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

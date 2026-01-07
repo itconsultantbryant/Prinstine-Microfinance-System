@@ -261,7 +261,7 @@ const Savings = () => {
                         >
                           <option value="regular">Regular Savings</option>
                           <option value="fixed">Fixed Deposit</option>
-                          <option value="current">Current Account</option>
+                          <option value="joint">Joint Account</option>
                         </select>
                       </div>
                       <div className="col-md-6 mb-3">
