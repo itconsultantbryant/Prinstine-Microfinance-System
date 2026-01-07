@@ -689,7 +689,7 @@ router.post('/:id/repay', authenticate, [
       });
     }
 
-    // Create transaction
+    // Create main loan payment transaction
     const transactionCount = await db.Transaction.count();
     const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
 
@@ -708,6 +708,80 @@ router.post('/:id/repay', authenticate, [
 
     // Update repayment with transaction ID
     await nextRepayment.update({ transaction_id: transaction.id });
+
+    // Handle interest distribution if interest amount > 0
+    if (interestAmount > 0) {
+      // Check if client has savings accounts
+      const savingsAccounts = await db.SavingsAccount.findAll({
+        where: { 
+          client_id: loan.client_id,
+          status: 'active'
+        }
+      });
+
+      if (savingsAccounts.length > 0) {
+        // Client has savings - distribute interest
+        // Personal Interest Payment: Full interest goes to client's savings
+        let personalInterestTransactionNumber = `TXN${String(await db.Transaction.count() + 1).padStart(8, '0')}`;
+        const personalInterestTransaction = await db.Transaction.create({
+          transaction_number: personalInterestTransactionNumber,
+          client_id: loan.client_id,
+          loan_id: loan.id,
+          savings_account_id: savingsAccounts[0].id, // Use first active savings account
+          type: 'personal_interest_payment',
+          amount: interestAmount,
+          description: `Personal interest payment from loan ${loan.loan_number}`,
+          transaction_date: req.body.payment_date || new Date(),
+          status: 'completed',
+          branch_id: loan.branch_id,
+          created_by: req.userId
+        });
+
+        // Credit personal interest to savings account
+        await savingsAccounts[0].update({
+          balance: parseFloat(savingsAccounts[0].balance || 0) + interestAmount
+        });
+
+        // General Interest: Share interest among all clients with savings
+        // Get all active savings accounts (all clients with savings)
+        const allSavingsAccounts = await db.SavingsAccount.findAll({
+          where: { status: 'active' },
+          include: [{ model: db.Client, as: 'client', required: true }]
+        });
+
+        if (allSavingsAccounts.length > 0) {
+          // Calculate share per savings account
+          const generalInterestShare = interestAmount / allSavingsAccounts.length;
+
+          // Distribute general interest to all savings accounts
+          for (let i = 0; i < allSavingsAccounts.length; i++) {
+            const account = allSavingsAccounts[i];
+            // Get next transaction number
+            const generalInterestTransactionNumber = `TXN${String(await db.Transaction.count() + 1).padStart(8, '0')}`;
+            
+            // Create general interest transaction for each account
+            await db.Transaction.create({
+              transaction_number: generalInterestTransactionNumber,
+              client_id: account.client_id,
+              loan_id: loan.id,
+              savings_account_id: account.id,
+              type: 'general_interest',
+              amount: generalInterestShare,
+              description: `General interest share from loan ${loan.loan_number}`,
+              transaction_date: req.body.payment_date || new Date(),
+              status: 'completed',
+              branch_id: loan.branch_id,
+              created_by: req.userId
+            });
+
+            // Credit general interest to savings account
+            await account.update({
+              balance: parseFloat(account.balance || 0) + generalInterestShare
+            });
+          }
+        }
+      }
+    }
 
     // Update loan
     const newOutstanding = Math.max(0, outstandingBalance - principalAmount);

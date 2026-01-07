@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
 // Create transaction
 router.post('/', [
   body('client_id').isInt().withMessage('Client ID is required'),
-  body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back']).withMessage('Valid transaction type is required'),
+  body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest']).withMessage('Valid transaction type is required'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount is required'),
   body('description').optional().isString()
 ], async (req, res) => {

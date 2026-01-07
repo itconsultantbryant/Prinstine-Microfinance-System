@@ -272,6 +272,14 @@ export const getMenuItemsForRole = (userRole) => {
       excludeRoles: ['borrower', 'loan_officer', 'hr', 'teller', 'customer_service']
     },
     
+    // Borrower Reports - Borrowers only
+    { 
+      path: '/borrower-reports', 
+      icon: 'fas fa-chart-line', 
+      label: 'My Reports', 
+      roles: ['borrower'] 
+    },
+    
     // Staff Management - HR and Admin
     { 
       path: '/staff', 

@@ -18,6 +18,7 @@ import Collaterals from './pages/Collaterals';
 import ApprovalCenter from './pages/ApprovalCenter';
 import Accounting from './pages/Accounting';
 import Reports from './pages/Reports';
+import BorrowerReports from './pages/BorrowerReports';
 import Staff from './pages/Staff';
 import Payroll from './pages/Payroll';
 import Users from './pages/Users';
@@ -170,6 +171,16 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <Reports />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/borrower-reports"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <BorrowerReports />
                 </Layout>
               </PrivateRoute>
             }

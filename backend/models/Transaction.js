@@ -45,7 +45,7 @@ module.exports = (sequelize) => {
       }
     },
     type: {
-      type: DataTypes.ENUM('deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back'),
+      type: DataTypes.ENUM('deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest'),
       allowNull: false
     },
     amount: {

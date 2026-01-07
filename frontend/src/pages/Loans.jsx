@@ -504,15 +504,19 @@ const Loans = () => {
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-1">Loans</h1>
-          <p className="text-muted">Manage all loan applications and disbursements</p>
+          <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'My Loans' : 'Loans'}</h1>
+          <p className="text-muted">
+            {user?.role === 'borrower' ? 'View your loan applications and status' : 'Manage all loan applications and disbursements'}
+          </p>
         </div>
-        <button
-          className="btn btn-primary hover-lift"
-          onClick={() => setShowModal(true)}
-        >
-          <i className="fas fa-plus me-2"></i>New Loan Application
-        </button>
+        {user?.role !== 'borrower' && (
+          <button
+            className="btn btn-primary hover-lift"
+            onClick={() => setShowModal(true)}
+          >
+            <i className="fas fa-plus me-2"></i>New Loan Application
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -610,7 +614,7 @@ const Loans = () => {
                             >
                               <i className="fas fa-eye"></i>
                             </Link>
-                            {loan.status === 'pending' && (
+                            {user?.role !== 'borrower' && loan.status === 'pending' && (
                               <button
                                 className="btn btn-sm btn-outline-success"
                                 onClick={() => handleApprove(loan.id)}
@@ -619,7 +623,7 @@ const Loans = () => {
                                 <i className="fas fa-check"></i>
                               </button>
                             )}
-                            {loan.status === 'approved' && (
+                            {user?.role !== 'borrower' && loan.status === 'approved' && (
                               <button
                                 className="btn btn-sm btn-outline-info"
                                 onClick={() => handleDisburse(loan.id)}

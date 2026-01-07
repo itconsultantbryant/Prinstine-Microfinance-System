@@ -3,8 +3,10 @@ import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import Receipt from '../components/Receipt';
+import { useAuth } from '../contexts/AuthContext';
 
 const Savings = () => {
+  const { user } = useAuth();
   const [savings, setSavings] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,12 +118,16 @@ const Savings = () => {
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-1">Savings Accounts</h1>
-          <p className="text-muted">Manage client savings accounts</p>
+          <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'My Savings' : 'Savings Accounts'}</h1>
+          <p className="text-muted">
+            {user?.role === 'borrower' ? 'View your savings accounts' : 'Manage client savings accounts'}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <i className="fas fa-plus me-2"></i>Add Savings Account
-        </button>
+        {user?.role !== 'borrower' && (
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <i className="fas fa-plus me-2"></i>Add Savings Account
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -166,27 +172,31 @@ const Savings = () => {
                         </td>
                         <td>
                           <div className="btn-group">
-                            <button 
-                              className="btn btn-sm btn-outline-success"
-                              onClick={() => {
-                                setSelectedAccount(account);
-                                setShowDepositModal(true);
-                              }}
-                              title="Deposit"
-                            >
-                              <i className="fas fa-plus"></i>
-                            </button>
-                            <button 
-                              className="btn btn-sm btn-outline-warning"
-                              onClick={() => {
-                                setSelectedAccount(account);
-                                setShowWithdrawModal(true);
-                              }}
-                              title="Withdraw"
-                              disabled={parseFloat(account.balance || 0) <= 0}
-                            >
-                              <i className="fas fa-minus"></i>
-                            </button>
+                            {user?.role !== 'borrower' && (
+                              <>
+                                <button 
+                                  className="btn btn-sm btn-outline-success"
+                                  onClick={() => {
+                                    setSelectedAccount(account);
+                                    setShowDepositModal(true);
+                                  }}
+                                  title="Deposit"
+                                >
+                                  <i className="fas fa-plus"></i>
+                                </button>
+                                <button 
+                                  className="btn btn-sm btn-outline-warning"
+                                  onClick={() => {
+                                    setSelectedAccount(account);
+                                    setShowWithdrawModal(true);
+                                  }}
+                                  title="Withdraw"
+                                  disabled={parseFloat(account.balance || 0) <= 0}
+                                >
+                                  <i className="fas fa-minus"></i>
+                                </button>
+                              </>
+                            )}
                             <Link
                               to={`/savings/${account.id}`}
                               className="btn btn-sm btn-outline-primary"
