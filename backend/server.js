@@ -183,13 +183,9 @@ db.sequelize.authenticate()
   .then(() => {
     console.log('✅ Database connection established successfully.');
     
-    // Sync database (set force: true only in development to reset tables)
-    if (process.env.NODE_ENV === 'development') {
-      return db.sequelize.sync({ alter: true });
-    } else {
-      // In production, ensure tables exist but don't alter them
-      return db.sequelize.sync({ alter: false });
-    }
+    // Sync database - use alter: true to add new columns automatically
+    // The postinstall script also runs migrations, but this ensures schema is up to date
+    return db.sequelize.sync({ alter: true });
   })
   .then(async () => {
     // Check if admin user exists, if not, seed the database
