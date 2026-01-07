@@ -212,19 +212,23 @@ const Loans = () => {
     const upfrontAmount = parseFloat(formData.upfront_amount || 0);
     const principal = calculatePrincipal(loanAmount, upfrontAmount);
     
-    if (!principal || !formData.interest_rate || !formData.term_months) {
+    if (!loanAmount || !formData.term_months) {
       setSchedulePreview(null);
       return;
     }
 
     try {
       const response = await apiClient.post('/api/loans/calculate-schedule', {
+        loan_amount: loanAmount,
+        upfront_percentage: parseFloat(formData.upfront_percentage) || 0,
+        loan_type: formData.loan_type,
         principal: principal,
-        interest_rate: parseFloat(formData.interest_rate),
+        interest_rate: parseFloat(formData.interest_rate) || 0,
         term_months: parseInt(formData.term_months),
         interest_method: formData.interest_method,
         payment_frequency: formData.payment_frequency,
-        start_date: formData.disbursement_date
+        start_date: formData.disbursement_date,
+        default_charges_percentage: parseFloat(formData.default_charges_percentage) || 0
       });
       setSchedulePreview(response.data.data);
     } catch (error) {
@@ -234,16 +238,14 @@ const Loans = () => {
 
   useEffect(() => {
     const loanAmount = parseFloat(formData.amount);
-    const upfrontAmount = parseFloat(formData.upfront_amount || 0);
-    const principal = calculatePrincipal(loanAmount, upfrontAmount);
     
-    if (principal > 0 && formData.interest_rate && formData.term_months) {
+    if (loanAmount > 0 && formData.term_months) {
       const timer = setTimeout(() => {
         calculateSchedulePreview();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [formData.amount, formData.upfront_amount, formData.interest_rate, formData.term_months, formData.interest_method, formData.payment_frequency, formData.disbursement_date]);
+  }, [formData.amount, formData.upfront_percentage, formData.upfront_amount, formData.loan_type, formData.interest_rate, formData.term_months, formData.interest_method, formData.payment_frequency, formData.disbursement_date, formData.default_charges_percentage]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

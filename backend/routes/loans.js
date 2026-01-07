@@ -327,9 +327,12 @@ router.post('/', authenticate, [
         loan,
         repayment_schedule: scheduleData.schedule,
         schedule_summary: {
-          total_interest: scheduleData.total_interest,
-          total_amount: scheduleData.total_amount,
-          monthly_payment: scheduleData.monthly_payment
+          total_interest: totalInterest,
+          total_amount: totalAmount,
+          monthly_payment: scheduleData.monthly_payment,
+          upfront_amount: upfrontAmount,
+          principal_amount: principal,
+          default_charges_amount: defaultChargesAmount
         }
       }
     });
@@ -405,20 +408,91 @@ router.post('/:id/disburse', authenticate, authorize('admin', 'branch_manager', 
 router.post('/calculate-schedule', authenticate, async (req, res) => {
   try {
     const loanCalculation = require('../services/loanCalculation');
-    const { principal, interest_rate, term_months, interest_method, payment_frequency, start_date } = req.body;
+    const { getLoanTypeConfig, calculateUpfrontAmount, calculatePrincipalAmount } = require('../config/loanTypes');
+    
+    const { 
+      loan_amount, 
+      upfront_percentage, 
+      loan_type,
+      interest_rate, 
+      term_months, 
+      interest_method, 
+      payment_frequency, 
+      start_date,
+      default_charges_percentage
+    } = req.body;
 
-    const scheduleData = loanCalculation.generateRepaymentSchedule(
-      principal,
-      interest_rate,
-      term_months,
-      interest_method || 'declining_balance',
-      payment_frequency || 'monthly',
-      start_date
-    );
+    // If loan_amount and upfront_percentage are provided, calculate principal
+    let principal = parseFloat(req.body.principal) || 0;
+    let upfrontAmount = 0;
+    let totalInterest = 0;
+    let totalAmount = 0;
+    
+    if (loan_amount && upfront_percentage) {
+      const loanAmount = parseFloat(loan_amount);
+      const upfrontPct = parseFloat(upfront_percentage);
+      upfrontAmount = calculateUpfrontAmount(loanAmount, upfrontPct);
+      principal = calculatePrincipalAmount(loanAmount, upfrontAmount);
+    }
+
+    if (!principal || principal <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Principal amount is required'
+      });
+    }
+
+    const loanType = loan_type || 'personal';
+    const loanTypeConfig = getLoanTypeConfig(loanType);
+    const interestRate = parseFloat(interest_rate) || loanTypeConfig.interestRate;
+    
+    // Calculate default charges if applicable
+    const defaultChargesPercentage = loanTypeConfig.hasDefaultCharges 
+      ? (parseFloat(default_charges_percentage) || 0)
+      : 0;
+    const defaultChargesAmount = defaultChargesPercentage > 0 
+      ? (principal * defaultChargesPercentage / 100)
+      : 0;
+
+    // Generate schedule
+    let scheduleData;
+    if (loanType === 'personal' && interestRate === 0) {
+      // Personal loan: upfront is interest
+      totalInterest = upfrontAmount;
+      scheduleData = loanCalculation.generateRepaymentSchedule(
+        principal,
+        0,
+        term_months,
+        interest_method || 'declining_balance',
+        payment_frequency || 'monthly',
+        start_date
+      );
+      scheduleData.total_interest = totalInterest;
+      scheduleData.total_amount = loan_amount || (principal + upfrontAmount);
+      totalAmount = scheduleData.total_amount;
+    } else {
+      scheduleData = loanCalculation.generateRepaymentSchedule(
+        principal,
+        interestRate,
+        term_months,
+        interest_method || 'declining_balance',
+        payment_frequency || 'monthly',
+        start_date
+      );
+      totalInterest = scheduleData.total_interest;
+      totalAmount = scheduleData.total_amount + defaultChargesAmount;
+    }
 
     res.json({
       success: true,
-      data: scheduleData
+      data: {
+        ...scheduleData,
+        total_interest: totalInterest,
+        total_amount: totalAmount,
+        upfront_amount: upfrontAmount,
+        principal_amount: principal,
+        default_charges_amount: defaultChargesAmount
+      }
     });
   } catch (error) {
     console.error('Calculate schedule error:', error);
