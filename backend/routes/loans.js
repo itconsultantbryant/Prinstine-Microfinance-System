@@ -5,6 +5,25 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 const router = express.Router();
+const { LOAN_TYPES, getLoanTypeConfig } = require('../config/loanTypes');
+
+// Get loan type configurations
+router.get('/types', authenticate, (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        loan_types: LOAN_TYPES
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch loan types',
+      error: error.message
+    });
+  }
+});
 
 // Get all loans
 router.get('/', authenticate, async (req, res) => {
@@ -160,19 +179,42 @@ router.post('/', authenticate, [
     }
 
     const loanCalculation = require('../services/loanCalculation');
+    const { getLoanTypeConfig, calculateUpfrontAmount, calculatePrincipalAmount } = require('../config/loanTypes');
     
     // Generate loan number
     const loanCount = await db.Loan.count();
     const loanNumber = `LN${String(loanCount + 1).padStart(6, '0')}`;
 
-    const principal = parseFloat(req.body.amount);
-    const interestRate = parseFloat(req.body.interest_rate || 12); // Default 12% if not provided
+    const loanType = req.body.loan_type || 'personal';
+    const loanTypeConfig = getLoanTypeConfig(loanType);
+    
+    // Get loan amount (total requested)
+    const loanAmount = parseFloat(req.body.amount);
+    
+    // Calculate upfront percentage and amount
+    const upfrontPercentage = parseFloat(req.body.upfront_percentage) || loanTypeConfig.upfrontPercentage;
+    const upfrontAmount = calculateUpfrontAmount(loanAmount, upfrontPercentage);
+    
+    // Calculate principal amount (after upfront deduction)
+    const principal = calculatePrincipalAmount(loanAmount, upfrontAmount);
+    
+    // Get interest rate (from form or loan type config)
+    const interestRate = parseFloat(req.body.interest_rate) || loanTypeConfig.interestRate;
+    
+    // Get default charges (only for Emergency and Micro loans)
+    const defaultChargesPercentage = loanTypeConfig.hasDefaultCharges 
+      ? (parseFloat(req.body.default_charges_percentage) || 0)
+      : 0;
+    const defaultChargesAmount = defaultChargesPercentage > 0 
+      ? (principal * defaultChargesPercentage / 100)
+      : 0;
+    
     const termMonths = parseInt(req.body.term_months);
-    const interestMethod = req.body.interest_method || 'declining_balance'; // Default to declining balance
+    const interestMethod = req.body.interest_method || loanTypeConfig.interestMethod;
     const paymentFrequency = req.body.payment_frequency || 'monthly';
     const disbursementDate = req.body.disbursement_date || new Date().toISOString().split('T')[0];
 
-    // Generate repayment schedule
+    // Generate repayment schedule based on principal (not loan amount)
     const scheduleData = loanCalculation.generateRepaymentSchedule(
       principal,
       interestRate,
@@ -181,16 +223,19 @@ router.post('/', authenticate, [
       paymentFrequency,
       disbursementDate
     );
+    
+    // Add default charges to total amount if applicable
+    const totalAmountWithCharges = scheduleData.total_amount + defaultChargesAmount;
 
     // Prepare loan data, ensuring proper types
     const loanData = {
       loan_number: loanNumber,
       client_id: parseInt(clientId),
-      amount: principal,
-      principal_amount: principal,
+      amount: loanAmount, // Total loan amount requested
+      principal_amount: principal, // Principal after upfront deduction
       interest_rate: interestRate,
       term_months: termMonths,
-      loan_type: req.body.loan_type || 'personal',
+      loan_type: loanType,
       payment_frequency: paymentFrequency,
       interest_method: interestMethod,
       loan_purpose: req.body.loan_purpose || null,
@@ -198,14 +243,18 @@ router.post('/', authenticate, [
       disbursement_date: disbursementDate,
       branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'pending',
-      outstanding_balance: principal,
+      outstanding_balance: principal + defaultChargesAmount, // Principal + default charges
       monthly_payment: scheduleData.monthly_payment,
       total_interest: scheduleData.total_interest,
-      total_amount: scheduleData.total_amount,
+      total_amount: totalAmountWithCharges, // Total including default charges
       repayment_schedule: JSON.stringify(scheduleData.schedule),
       application_date: disbursementDate,
       notes: req.body.notes || null,
-      created_by: req.userId
+      created_by: req.userId,
+      upfront_percentage: upfrontPercentage,
+      upfront_amount: upfrontAmount,
+      default_charges_percentage: defaultChargesPercentage,
+      default_charges_amount: defaultChargesAmount
     };
 
     const loan = await db.Loan.create(loanData);

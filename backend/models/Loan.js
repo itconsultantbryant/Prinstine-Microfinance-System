@@ -142,6 +142,26 @@ module.exports = (sequelize) => {
     next_payment_amount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: true
+    },
+    upfront_percentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: 0
+    },
+    upfront_amount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+      defaultValue: 0
+    },
+    default_charges_percentage: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: 0
+    },
+    default_charges_amount: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+      defaultValue: 0
     }
   }, {
     tableName: 'loans',

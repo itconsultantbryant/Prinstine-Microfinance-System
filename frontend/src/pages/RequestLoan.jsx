@@ -9,13 +9,19 @@ const RequestLoan = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [clientInfo, setClientInfo] = useState(null);
+  const [loanTypes, setLoanTypes] = useState({});
   const [formData, setFormData] = useState({
     amount: '',
     term_months: '12',
-    interest_rate: '', // Will be set by system, but can be requested
+    interest_rate: '',
+    upfront_percentage: '',
+    upfront_amount: '',
+    default_charges_percentage: '',
+    default_charges_amount: '',
     loan_type: 'personal',
     loan_purpose: '',
     payment_frequency: 'monthly',
+    interest_method: 'declining_balance',
     collateral_id: '',
     notes: ''
   });
@@ -25,7 +31,118 @@ const RequestLoan = () => {
   useEffect(() => {
     fetchClientInfo();
     fetchCollaterals();
+    fetchLoanTypes();
   }, []);
+
+  const fetchLoanTypes = async () => {
+    try {
+      const response = await apiClient.get('/api/loans/types');
+      setLoanTypes(response.data.data.loan_types || {});
+      
+      // Set default values for personal loan
+      const personalConfig = response.data.data.loan_types?.personal;
+      if (personalConfig) {
+        setFormData(prev => ({
+          ...prev,
+          interest_rate: personalConfig.interestRate.toString(),
+          upfront_percentage: personalConfig.upfrontPercentage.toString(),
+          interest_method: personalConfig.interestMethod
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch loan types:', error);
+    }
+  };
+
+  // Calculate upfront amount
+  const calculateUpfront = (loanAmount, upfrontPercentage) => {
+    if (!loanAmount || !upfrontPercentage) return 0;
+    return (parseFloat(loanAmount) * parseFloat(upfrontPercentage)) / 100;
+  };
+
+  // Calculate principal amount (after upfront deduction)
+  const calculatePrincipal = (loanAmount, upfrontAmount) => {
+    return Math.max(0, parseFloat(loanAmount) - parseFloat(upfrontAmount));
+  };
+
+  // Calculate default charges amount
+  const calculateDefaultCharges = (principal, defaultChargesPercentage) => {
+    if (!principal || !defaultChargesPercentage) return 0;
+    return (parseFloat(principal) * parseFloat(defaultChargesPercentage)) / 100;
+  };
+
+  // Handle loan type change
+  const handleLoanTypeChange = (loanType) => {
+    const config = loanTypes[loanType];
+    if (config) {
+      const newFormData = {
+        ...formData,
+        loan_type: loanType,
+        interest_rate: config.interestRate.toString(),
+        upfront_percentage: config.upfrontPercentage.toString(),
+        interest_method: config.interestMethod
+      };
+      
+      if (formData.amount) {
+        const upfrontAmount = calculateUpfront(formData.amount, config.upfrontPercentage);
+        newFormData.upfront_amount = upfrontAmount.toFixed(2);
+      }
+      
+      setFormData(newFormData);
+    } else {
+      setFormData({ ...formData, loan_type: loanType });
+    }
+  };
+
+  // Handle amount change
+  const handleAmountChange = (amount) => {
+    const newFormData = { ...formData, amount };
+    
+    if (amount && formData.upfront_percentage) {
+      const upfrontAmount = calculateUpfront(amount, formData.upfront_percentage);
+      newFormData.upfront_amount = upfrontAmount.toFixed(2);
+      
+      const principal = calculatePrincipal(amount, upfrontAmount);
+      if (formData.default_charges_percentage) {
+        const defaultChargesAmount = calculateDefaultCharges(principal, formData.default_charges_percentage);
+        newFormData.default_charges_amount = defaultChargesAmount.toFixed(2);
+      }
+    }
+    
+    setFormData(newFormData);
+  };
+
+  // Handle upfront percentage change
+  const handleUpfrontPercentageChange = (percentage) => {
+    const newFormData = { ...formData, upfront_percentage: percentage };
+    
+    if (formData.amount && percentage) {
+      const upfrontAmount = calculateUpfront(formData.amount, percentage);
+      newFormData.upfront_amount = upfrontAmount.toFixed(2);
+      
+      const principal = calculatePrincipal(formData.amount, upfrontAmount);
+      if (formData.default_charges_percentage) {
+        const defaultChargesAmount = calculateDefaultCharges(principal, formData.default_charges_percentage);
+        newFormData.default_charges_amount = defaultChargesAmount.toFixed(2);
+      }
+    }
+    
+    setFormData(newFormData);
+  };
+
+  // Handle default charges percentage change
+  const handleDefaultChargesPercentageChange = (percentage) => {
+    const newFormData = { ...formData, default_charges_percentage: percentage };
+    
+    if (formData.amount && formData.upfront_percentage && percentage) {
+      const upfrontAmount = calculateUpfront(formData.amount, formData.upfront_percentage);
+      const principal = calculatePrincipal(formData.amount, upfrontAmount);
+      const defaultChargesAmount = calculateDefaultCharges(principal, percentage);
+      newFormData.default_charges_amount = defaultChargesAmount.toFixed(2);
+    }
+    
+    setFormData(newFormData);
+  };
 
   const fetchClientInfo = async () => {
     try {
@@ -90,7 +207,10 @@ const RequestLoan = () => {
         ...formData,
         amount: parseFloat(formData.amount),
         term_months: parseInt(formData.term_months),
-        interest_rate: formData.interest_rate || 12, // Default interest rate
+        interest_rate: parseFloat(formData.interest_rate) || 0,
+        upfront_percentage: parseFloat(formData.upfront_percentage) || 0,
+        default_charges_percentage: parseFloat(formData.default_charges_percentage) || 0,
+        interest_method: formData.interest_method || 'declining_balance',
         status: 'pending' // Loan request status
       };
 
@@ -181,7 +301,7 @@ const RequestLoan = () => {
                         className={`form-control ${formErrors.amount ? 'is-invalid' : ''}`}
                         name="amount"
                         value={formData.amount}
-                        onChange={handleChange}
+                        onChange={(e) => handleAmountChange(e.target.value)}
                         placeholder="Enter loan amount"
                         required
                       />
@@ -189,6 +309,51 @@ const RequestLoan = () => {
                     {formErrors.amount && (
                       <div className="invalid-feedback d-block">{formErrors.amount}</div>
                     )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Upfront Percentage (%) <span className="text-danger">*</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      className="form-control"
+                      name="upfront_percentage"
+                      value={formData.upfront_percentage}
+                      onChange={(e) => handleUpfrontPercentageChange(e.target.value)}
+                      required
+                    />
+                    {formData.upfront_amount && (
+                      <small className="text-muted">
+                        Upfront Amount: ${parseFloat(formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </small>
+                    )}
+                  </div>
+
+                  {formData.amount && formData.upfront_amount && (
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Principal Amount (After Upfront)</label>
+                      <div className="form-control-plaintext">
+                        <strong>${calculatePrincipal(formData.amount, formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">Interest Rate (%) <span className="text-danger">*</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      className="form-control"
+                      name="interest_rate"
+                      value={formData.interest_rate}
+                      onChange={handleChange}
+                      required
+                    />
+                    <small className="text-muted">Auto-filled based on loan type (editable)</small>
                   </div>
 
                   <div className="col-md-6 mb-3">
@@ -212,19 +377,25 @@ const RequestLoan = () => {
                   </div>
 
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Loan Type</label>
+                    <label className="form-label">Loan Type <span className="text-danger">*</span></label>
                     <select
                       className="form-select"
                       name="loan_type"
                       value={formData.loan_type}
-                      onChange={handleChange}
+                      onChange={(e) => handleLoanTypeChange(e.target.value)}
+                      required
                     >
-                      <option value="personal">Personal Loan</option>
-                      <option value="business">Business Loan</option>
-                      <option value="agricultural">Agricultural Loan</option>
-                      <option value="education">Education Loan</option>
-                      <option value="emergency">Emergency Loan</option>
+                      <option value="personal">Personal - 10% upfront</option>
+                      <option value="business">Business - 5% on loan, 10% upfront</option>
+                      <option value="emergency">Emergency - 16% on loan, 2% upfront</option>
+                      <option value="micro">Micro Loan</option>
                     </select>
+                    {loanTypes[formData.loan_type] && (
+                      <small className="text-muted">
+                        {loanTypes[formData.loan_type].name}: {loanTypes[formData.loan_type].interestRate}% interest, {loanTypes[formData.loan_type].upfrontPercentage}% upfront
+                        {loanTypes[formData.loan_type].hasDefaultCharges && ' (with default charges)'}
+                      </small>
+                    )}
                   </div>
 
                   <div className="col-md-6 mb-3">
@@ -241,6 +412,33 @@ const RequestLoan = () => {
                       <option value="quarterly">Quarterly</option>
                     </select>
                   </div>
+
+                  {/* Default Charges (Only for Emergency and Micro loans) */}
+                  {loanTypes[formData.loan_type]?.hasDefaultCharges && (
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Default Charges Percentage (%)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        className="form-control"
+                        name="default_charges_percentage"
+                        value={formData.default_charges_percentage}
+                        onChange={(e) => handleDefaultChargesPercentageChange(e.target.value)}
+                        placeholder="Enter default charges percentage (optional)"
+                      />
+                      {formData.default_charges_amount && (
+                        <small className="text-muted">
+                          Default Charges Amount: ${parseFloat(formData.default_charges_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </small>
+                      )}
+                      <small className="text-muted d-block mt-1">
+                        <i className="fas fa-info-circle me-1"></i>
+                        Default charges will be added to the total loan amount if specified.
+                      </small>
+                    </div>
+                  )}
 
                   <div className="col-12 mb-3">
                     <label className="form-label">Loan Purpose <span className="text-danger">*</span></label>
