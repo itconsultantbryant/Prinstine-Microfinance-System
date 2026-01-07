@@ -54,12 +54,19 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.RENDER_EXTERNAL_HOSTNAME) {
     allowedOrigins.push(`https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
   }
+  // Add custom domain if provided (from Render custom domain feature)
+  if (process.env.CUSTOM_DOMAIN) {
+    allowedOrigins.push(`https://${process.env.CUSTOM_DOMAIN}`);
+    allowedOrigins.push(`http://${process.env.CUSTOM_DOMAIN}`);
+  }
   // Add frontend URL if provided
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
   }
   // Allow all Render domains in production (regex pattern)
   allowedOrigins.push(/^https:\/\/.*\.onrender\.com$/);
+  // Allow custom domains (common patterns)
+  // Note: This is a fallback - specific domains should be added via CUSTOM_DOMAIN env var
 }
 
 app.use(cors({
