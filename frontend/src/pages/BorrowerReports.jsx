@@ -29,7 +29,7 @@ const BorrowerReports = () => {
       const [loansRes, savingsRes, transactionsRes] = await Promise.all([
         apiClient.get('/api/loans'),
         apiClient.get('/api/savings'),
-        apiClient.get('/api/transactions')
+        apiClient.get('/api/transactions', { params: { limit: 1000 } }) // Get more transactions for reports
       ]);
 
       const loans = loansRes.data.data.loans || [];
