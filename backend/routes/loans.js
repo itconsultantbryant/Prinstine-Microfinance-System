@@ -214,18 +214,54 @@ router.post('/', authenticate, [
     const paymentFrequency = req.body.payment_frequency || 'monthly';
     const disbursementDate = req.body.disbursement_date || new Date().toISOString().split('T')[0];
 
-    // Generate repayment schedule based on principal (not loan amount)
-    const scheduleData = loanCalculation.generateRepaymentSchedule(
-      principal,
-      interestRate,
-      termMonths,
-      interestMethod,
-      paymentFrequency,
-      disbursementDate
-    );
+    // For Personal loans: upfront amount IS the interest (all interest paid upfront)
+    // For other loans: upfront is a fee, interest is calculated on principal
+    let scheduleData;
+    let totalInterest;
+    let totalAmount;
     
-    // Add default charges to total amount if applicable
-    const totalAmountWithCharges = scheduleData.total_amount + defaultChargesAmount;
+    if (loanType === 'personal' && interestRate === 0) {
+      // Personal loan: All interest is upfront (10% of loan amount)
+      // Principal is what's left after upfront deduction
+      // No additional interest on the principal
+      totalInterest = upfrontAmount; // Upfront IS the interest
+      
+      // Generate schedule with 0% interest (just principal repayment)
+      scheduleData = loanCalculation.generateRepaymentSchedule(
+        principal,
+        0, // 0% interest since all interest is upfront
+        termMonths,
+        interestMethod,
+        paymentFrequency,
+        disbursementDate
+      );
+      
+      // Total interest is upfront amount
+      scheduleData.total_interest = totalInterest;
+      // Total amount = loan amount (principal + upfront interest)
+      totalAmount = loanAmount;
+      scheduleData.total_amount = totalAmount;
+    } else {
+      // Other loan types: Upfront is a fee, interest is calculated on principal
+      // Generate repayment schedule based on principal
+      scheduleData = loanCalculation.generateRepaymentSchedule(
+        principal,
+        interestRate,
+        termMonths,
+        interestMethod,
+        paymentFrequency,
+        disbursementDate
+      );
+      
+      // Total interest = schedule interest (calculated on principal)
+      totalInterest = scheduleData.total_interest;
+      // Total amount = principal + schedule interest + default charges
+      totalAmount = scheduleData.total_amount + defaultChargesAmount;
+    }
+    
+    // Outstanding balance = principal + total interest (from schedule) + default charges
+    // For Personal loans, upfront interest is already included in total interest
+    const outstandingBalance = principal + totalInterest + defaultChargesAmount;
 
     // Prepare loan data, ensuring proper types
     const loanData = {
@@ -243,10 +279,10 @@ router.post('/', authenticate, [
       disbursement_date: disbursementDate,
       branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'pending',
-      outstanding_balance: principal + defaultChargesAmount, // Principal + default charges
+      outstanding_balance: outstandingBalance, // Principal + total interest + default charges
       monthly_payment: scheduleData.monthly_payment,
-      total_interest: scheduleData.total_interest,
-      total_amount: totalAmountWithCharges, // Total including default charges
+      total_interest: totalInterest, // Total interest (upfront for Personal, calculated for others)
+      total_amount: totalAmount, // Total amount (loan amount for Personal, principal + interest + charges for others)
       repayment_schedule: JSON.stringify(scheduleData.schedule),
       application_date: disbursementDate,
       notes: req.body.notes || null,

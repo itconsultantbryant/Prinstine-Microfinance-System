@@ -45,10 +45,22 @@ function calculateDecliningBalanceSchedule(principal, interestRate, termMonths, 
 
   // Generate schedule
   for (let installment = 1; installment <= totalInstallments; installment++) {
+    // Calculate interest for this period
     const interestAmount = Math.round(outstandingBalance * r * 100) / 100;
-    const principalAmount = Math.min(emi - interestAmount, outstandingBalance);
+    
+    // Calculate principal payment
+    let principalAmount = emi - interestAmount;
+    
+    // For last installment, ensure we pay exactly the remaining balance
+    if (installment === totalInstallments) {
+      principalAmount = outstandingBalance;
+    }
+    
+    // Ensure principal doesn't exceed outstanding balance
+    principalAmount = Math.min(principalAmount, outstandingBalance);
     const totalPayment = principalAmount + interestAmount;
     
+    // Update outstanding balance
     outstandingBalance = Math.max(0, outstandingBalance - principalAmount);
     totalInterest += interestAmount;
 
@@ -74,11 +86,15 @@ function calculateDecliningBalanceSchedule(principal, interestRate, termMonths, 
       status: 'pending'
     });
   }
+  
+  // Round final values to ensure accuracy
+  totalInterest = Math.round(totalInterest * 100) / 100;
+  const finalTotalAmount = Math.round((parseFloat(principal) + totalInterest) * 100) / 100;
 
   return {
     schedule,
-    total_interest: Math.round(totalInterest * 100) / 100,
-    total_amount: Math.round((parseFloat(principal) + totalInterest) * 100) / 100,
+    total_interest: totalInterest,
+    total_amount: finalTotalAmount,
     monthly_payment: Math.round(emi * 100) / 100
   };
 }
@@ -128,11 +144,21 @@ function calculateFlatRateSchedule(principal, interestRate, termMonths, startDat
   let remainingBalance = totalAmount;
   
   for (let installment = 1; installment <= totalInstallments; installment++) {
-    const principalAmount = Math.min(principalPerInstallment, remainingBalance - interestPerInstallment);
-    const interestAmount = interestPerInstallment;
-    const totalPayment = principalAmount + interestAmount;
+    // For last installment, pay remaining balance
+    let principalAmount, interestAmount, totalPayment;
     
-    remainingBalance = Math.max(0, remainingBalance - totalPayment);
+    if (installment === totalInstallments) {
+      // Last installment: pay remaining balance
+      interestAmount = interestPerInstallment;
+      principalAmount = remainingBalance - interestAmount;
+      totalPayment = remainingBalance;
+      remainingBalance = 0;
+    } else {
+      principalAmount = principalPerInstallment;
+      interestAmount = interestPerInstallment;
+      totalPayment = principalAmount + interestAmount;
+      remainingBalance = Math.max(0, remainingBalance - totalPayment);
+    }
     
     // Calculate due date
     const dueDate = new Date(start);
