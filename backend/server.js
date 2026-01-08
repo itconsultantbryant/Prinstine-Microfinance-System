@@ -194,7 +194,18 @@ db.sequelize.authenticate()
     
     // Sync database - use alter: true to add new columns automatically
     // The postinstall script also runs migrations, but this ensures schema is up to date
-    return db.sequelize.sync({ alter: true });
+    await db.sequelize.sync({ alter: true });
+    
+    // Run additional migrations for ENUM changes (PostgreSQL requires special handling)
+    try {
+      const addExcessLoanType = require('./scripts/add-excess-loan-type');
+      await addExcessLoanType();
+    } catch (migrationError) {
+      console.error('⚠️  Migration warning (non-critical):', migrationError.message);
+      // Continue even if migration fails - it might already be applied
+    }
+    
+    return Promise.resolve();
   })
   .then(async () => {
     // Check if admin user exists, if not, seed the database
