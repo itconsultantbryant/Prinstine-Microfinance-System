@@ -189,7 +189,7 @@ app.use((req, res) => {
 
 // Database connection and server start
 db.sequelize.authenticate()
-  .then(() => {
+  .then(async () => {
     console.log('✅ Database connection established successfully.');
     
     // Sync database - use alter: true to add new columns automatically
