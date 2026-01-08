@@ -2,10 +2,27 @@
 const LOAN_TYPES = {
   personal: {
     name: 'Personal Loan',
-    interestRate: 0, // 0% on loan (all upfront)
-    upfrontPercentage: 10, // 10% upfront
+    interestRate: 10, // 10% interest (not upfront)
+    upfrontPercentage: 0, // No upfront
     interestMethod: 'declining_balance',
-    hasDefaultCharges: false
+    hasDefaultCharges: false,
+    interestDistribution: {
+      admin: 0.30, // 30% to admin revenue
+      client: 0.40, // 40% to client with loan
+      general: 0.30 // 30% divided among all clients with savings
+    }
+  },
+  excess: {
+    name: 'Excess Loan',
+    interestRate: 10, // 10% interest
+    upfrontPercentage: 0, // No upfront
+    interestMethod: 'declining_balance',
+    hasDefaultCharges: false,
+    interestDistribution: {
+      admin: 0.20, // 20% to admin revenue
+      client: 0.30, // 30% to client with loan
+      general: 0.50 // 50% divided among all clients with savings
+    }
   },
   business: {
     name: 'Business Loan',

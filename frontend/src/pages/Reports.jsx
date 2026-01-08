@@ -44,6 +44,14 @@ const Reports = () => {
     grandTotal: 0,
     overallTotalSavings: 0
   });
+  const [revenueData, setRevenueData] = useState({
+    totalRevenue: 0,
+    loanRevenue: 0,
+    savingsRevenue: 0,
+    feesRevenue: 0,
+    revenueBySource: {},
+    revenues: []
+  });
 
   // Reset chart key when switching report types to avoid canvas reuse errors
   useEffect(() => {
@@ -55,12 +63,14 @@ const Reports = () => {
     fetchDashboardData();
     fetchHistoricalData();
     fetchFinancialSummary();
+    fetchRevenueData();
     
     // Refresh data every 30 seconds for real-time updates
     const interval = setInterval(() => {
       fetchDashboardData();
       fetchHistoricalData();
       fetchFinancialSummary();
+      fetchRevenueData();
     }, 30000);
     
     return () => clearInterval(interval);
@@ -235,6 +245,14 @@ const Reports = () => {
             onClick={() => setReportType('performance')}
           >
             <i className="fas fa-tachometer-alt me-2"></i>Performance
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${reportType === 'revenue' ? 'active' : ''}`}
+            onClick={() => setReportType('revenue')}
+          >
+            <i className="fas fa-dollar-sign me-2"></i>Revenue
           </button>
         </li>
       </ul>

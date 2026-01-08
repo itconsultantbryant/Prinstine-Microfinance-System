@@ -29,6 +29,7 @@ const kycRoutes = require('./routes/kyc');
 const collateralRoutes = require('./routes/collaterals');
 const notificationRoutes = require('./routes/notifications');
 const receiptRoutes = require('./routes/receipts');
+const revenueRoutes = require('./routes/revenue');
 
 // Initialize Express app
 const app = express();
@@ -143,6 +144,7 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/collaterals', collateralRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/receipts', receiptRoutes);
+app.use('/api/revenue', revenueRoutes);
 app.use('/api/recycle', require('./routes/recycle'));
 
 // Error handling middleware

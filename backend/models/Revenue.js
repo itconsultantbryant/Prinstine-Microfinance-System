@@ -12,43 +12,43 @@ module.exports = (sequelize) => {
       allowNull: false,
       unique: true
     },
-    account_id: {
+    source: {
+      type: DataTypes.ENUM('loan_interest', 'savings_interest', 'fees', 'other'),
+      allowNull: false
+    },
+    loan_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
-        model: 'chart_of_accounts',
+        model: 'loans',
         key: 'id'
       }
     },
-    revenue_type: {
-      type: DataTypes.ENUM('interest', 'penalty', 'fee', 'other'),
-      allowNull: false
+    transaction_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'transactions',
+        key: 'id'
+      }
     },
     amount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false
+    },
+    currency: {
+      type: DataTypes.STRING(3),
+      defaultValue: 'USD'
     },
     description: {
       type: DataTypes.TEXT,
       allowNull: true
     },
     revenue_date: {
-      type: DataTypes.DATEONLY,
-      allowNull: false
-    },
-    status: {
-      type: DataTypes.ENUM('draft', 'approved', 'posted', 'rejected'),
-      defaultValue: 'draft'
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW
     },
     created_by: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
-    },
-    approved_by: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
@@ -63,4 +63,3 @@ module.exports = (sequelize) => {
 
   return Revenue;
 };
-

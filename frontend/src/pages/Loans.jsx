@@ -720,7 +720,8 @@ const Loans = () => {
                           value={formData.loan_type}
                           onChange={(e) => handleLoanTypeChange(e.target.value)}
                         >
-                          <option value="personal">Personal - 10% upfront</option>
+                          <option value="personal">Personal - 10% interest</option>
+                          <option value="excess">Excess - 10% interest</option>
                           <option value="business">Business - 5% on loan, 10% upfront</option>
                           <option value="emergency">Emergency - 16% on loan, 2% upfront</option>
                           <option value="micro">Micro Loan</option>

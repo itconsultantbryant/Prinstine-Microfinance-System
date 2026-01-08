@@ -146,9 +146,11 @@ Expense.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 Expense.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
 
 // Revenue relationships
-Revenue.belongsTo(ChartOfAccount, { foreignKey: 'account_id', as: 'account' });
+Revenue.belongsTo(Loan, { foreignKey: 'loan_id', as: 'loan' });
+Revenue.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
 Revenue.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-Revenue.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+Loan.hasMany(Revenue, { foreignKey: 'loan_id', as: 'revenues' });
+Transaction.hasOne(Revenue, { foreignKey: 'transaction_id', as: 'revenue' });
 
 // Transfer relationships
 Transfer.belongsTo(Bank, { foreignKey: 'from_account_id', as: 'fromAccount' });
