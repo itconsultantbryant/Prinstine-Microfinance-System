@@ -152,6 +152,33 @@ const Reports = () => {
     }
   };
 
+  const fetchRevenueData = async () => {
+    try {
+      const response = await apiClient.get('/api/revenue/summary');
+      if (response.data.success) {
+        setRevenueData({
+          totalRevenue: response.data.data.totalRevenue || 0,
+          loanRevenue: response.data.data.loanRevenue || 0,
+          savingsRevenue: response.data.data.savingsRevenue || 0,
+          feesRevenue: response.data.data.feesRevenue || 0,
+          revenueBySource: response.data.data.revenueBySource || {},
+          revenues: []
+        });
+      }
+
+      // Fetch detailed revenue list
+      const revenueListResponse = await apiClient.get('/api/revenue');
+      if (revenueListResponse.data.success) {
+        setRevenueData(prev => ({
+          ...prev,
+          revenues: revenueListResponse.data.data.revenues || []
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch revenue data:', error);
+    }
+  };
+
   // Generate financial data from real historical statistics
   const financialData = historicalData && dashboardStats ? {
     labels: historicalData.months || [],
