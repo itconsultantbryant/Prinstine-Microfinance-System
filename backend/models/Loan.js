@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
       }
     },
     loan_type: {
-      type: DataTypes.ENUM('personal', 'business', 'agricultural', 'education', 'housing', 'micro', 'group', 'emergency'),
+      type: DataTypes.ENUM('personal', 'excess', 'business', 'agricultural', 'education', 'housing', 'micro', 'group', 'emergency'),
       defaultValue: 'personal'
     },
     amount: {

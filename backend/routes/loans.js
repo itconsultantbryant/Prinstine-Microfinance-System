@@ -347,10 +347,18 @@ router.post('/', authenticate, [
   } catch (error) {
     console.error('Create loan error:', error);
     console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    console.error('Error details:', error);
+    
+    // Provide more detailed error information in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `${error.message}${error.errors ? ' - ' + JSON.stringify(error.errors) : ''}`
+      : 'Internal server error';
+    
     res.status(500).json({
       success: false,
       message: 'Failed to create loan',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: errorMessage
     });
   }
 });
