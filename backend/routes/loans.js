@@ -191,23 +191,8 @@ router.post('/', authenticate, [
     // Get loan amount (total requested)
     const loanAmount = parseFloat(req.body.amount);
     
-    // Calculate upfront percentage and amount
-    const upfrontPercentage = parseFloat(req.body.upfront_percentage) || loanTypeConfig.upfrontPercentage;
-    const upfrontAmount = calculateUpfrontAmount(loanAmount, upfrontPercentage);
-    
-    // Calculate principal amount (after upfront deduction)
-    const principal = calculatePrincipalAmount(loanAmount, upfrontAmount);
-    
     // Get interest rate (from form or loan type config)
     const interestRate = parseFloat(req.body.interest_rate) || loanTypeConfig.interestRate;
-    
-    // Get default charges (only for Emergency and Micro loans)
-    const defaultChargesPercentage = loanTypeConfig.hasDefaultCharges 
-      ? (parseFloat(req.body.default_charges_percentage) || 0)
-      : 0;
-    const defaultChargesAmount = defaultChargesPercentage > 0 
-      ? (principal * defaultChargesPercentage / 100)
-      : 0;
     
     const termMonths = parseInt(req.body.term_months);
     const interestMethod = req.body.interest_method || loanTypeConfig.interestMethod;
@@ -220,10 +205,21 @@ router.post('/', authenticate, [
     let scheduleData;
     let totalInterest;
     let totalAmount;
+    let principal;
+    let upfrontAmount;
+    let upfrontPercentage;
+    let defaultChargesPercentage;
+    let defaultChargesAmount;
     
     if (loanType === 'personal' || loanType === 'excess') {
       // Personal/Excess loans: 10% interest calculated on full loan amount, no upfront
       // Interest is distributed: Personal (30% admin, 40% client, 30% general), Excess (20% admin, 30% client, 50% general)
+      upfrontPercentage = 0;
+      upfrontAmount = 0;
+      principal = loanAmount; // Full loan amount (no upfront deduction)
+      defaultChargesPercentage = 0;
+      defaultChargesAmount = 0;
+      
       // Generate schedule with interest calculated on the full loan amount
       scheduleData = loanCalculation.generateRepaymentSchedule(
         loanAmount, // Use full loan amount (no upfront deduction)
@@ -238,12 +234,23 @@ router.post('/', authenticate, [
       totalInterest = scheduleData.total_interest;
       // Total amount = loan amount + interest
       totalAmount = scheduleData.total_amount;
-      // Principal is the loan amount (no upfront deduction)
-      principal = loanAmount;
-      upfrontAmount = 0;
-      upfrontPercentage = 0;
     } else {
       // Other loan types: Upfront is a fee, interest is calculated on principal
+      // Calculate upfront percentage and amount
+      upfrontPercentage = parseFloat(req.body.upfront_percentage) || loanTypeConfig.upfrontPercentage;
+      upfrontAmount = calculateUpfrontAmount(loanAmount, upfrontPercentage);
+      
+      // Calculate principal amount (after upfront deduction)
+      principal = calculatePrincipalAmount(loanAmount, upfrontAmount);
+      
+      // Get default charges (only for Emergency and Micro loans)
+      defaultChargesPercentage = loanTypeConfig.hasDefaultCharges 
+        ? (parseFloat(req.body.default_charges_percentage) || 0)
+        : 0;
+      defaultChargesAmount = defaultChargesPercentage > 0 
+        ? (principal * defaultChargesPercentage / 100)
+        : 0;
+      
       // Generate repayment schedule based on principal
       scheduleData = loanCalculation.generateRepaymentSchedule(
         principal,
