@@ -214,33 +214,34 @@ router.post('/', authenticate, [
     const paymentFrequency = req.body.payment_frequency || 'monthly';
     const disbursementDate = req.body.disbursement_date || new Date().toISOString().split('T')[0];
 
-    // For Personal loans: upfront amount IS the interest (all interest paid upfront)
-    // For other loans: upfront is a fee, interest is calculated on principal
+    // Handle different loan types
+    // Personal and Excess: 10% interest on loan amount, no upfront
+    // Other loans: upfront is a fee, interest is calculated on principal
     let scheduleData;
     let totalInterest;
     let totalAmount;
     
-    if (loanType === 'personal' && interestRate === 0) {
-      // Personal loan: All interest is upfront (10% of loan amount)
-      // Principal is what's left after upfront deduction
-      // No additional interest on the principal
-      totalInterest = upfrontAmount; // Upfront IS the interest
-      
-      // Generate schedule with 0% interest (just principal repayment)
+    if (loanType === 'personal' || loanType === 'excess') {
+      // Personal/Excess loans: 10% interest calculated on full loan amount, no upfront
+      // Interest is distributed: Personal (30% admin, 40% client, 30% general), Excess (20% admin, 30% client, 50% general)
+      // Generate schedule with interest calculated on the full loan amount
       scheduleData = loanCalculation.generateRepaymentSchedule(
-        principal,
-        0, // 0% interest since all interest is upfront
+        loanAmount, // Use full loan amount (no upfront deduction)
+        interestRate, // 10% interest
         termMonths,
         interestMethod,
         paymentFrequency,
         disbursementDate
       );
       
-      // Total interest is upfront amount
-      scheduleData.total_interest = totalInterest;
-      // Total amount = loan amount (principal + upfront interest)
-      totalAmount = loanAmount;
-      scheduleData.total_amount = totalAmount;
+      // Total interest = schedule interest (calculated on loan amount)
+      totalInterest = scheduleData.total_interest;
+      // Total amount = loan amount + interest
+      totalAmount = scheduleData.total_amount;
+      // Principal is the loan amount (no upfront deduction)
+      principal = loanAmount;
+      upfrontAmount = 0;
+      upfrontPercentage = 0;
     } else {
       // Other loan types: Upfront is a fee, interest is calculated on principal
       // Generate repayment schedule based on principal
@@ -260,7 +261,7 @@ router.post('/', authenticate, [
     }
     
     // Outstanding balance = principal + total interest (from schedule) + default charges
-    // For Personal loans, upfront interest is already included in total interest
+    // For Personal/Excess loans, principal is the loan amount and interest is calculated on it
     const outstandingBalance = principal + totalInterest + defaultChargesAmount;
 
     // Prepare loan data, ensuring proper types
