@@ -126,6 +126,12 @@ router.post('/', [
       }
     }
 
+    // Handle currency - default to USD if not provided or invalid
+    let currency = req.body.currency || 'USD';
+    if (!['LRD', 'USD'].includes(currency)) {
+      currency = 'USD'; // Default to USD if invalid
+    }
+
     const savingsAccount = await db.SavingsAccount.create({
       client_id: parseInt(req.body.client_id),
       account_type: accountType,
@@ -135,7 +141,8 @@ router.post('/', [
       branch_id: req.body.branch_id && req.body.branch_id !== '' ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'active',
       created_by: req.userId,
-      opening_date: req.body.opening_date || new Date()
+      opening_date: req.body.opening_date || new Date(),
+      currency: currency // Currency for the savings account (LRD or USD)
     });
 
     res.status(201).json({

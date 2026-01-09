@@ -1007,6 +1007,9 @@ router.post('/:id/repay', authenticate, [
     }
 
     // Create main loan payment transaction
+    // Inherit currency from loan
+    const loanCurrency = loan.currency || 'USD';
+    
     const transactionCount = await db.Transaction.count();
     const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
 
@@ -1016,6 +1019,7 @@ router.post('/:id/repay', authenticate, [
       loan_id: loan.id,
       type: 'loan_payment',
       amount: paymentAmount,
+      currency: loanCurrency, // Inherit currency from loan
       description: `Loan repayment for ${loan.loan_number}`,
       transaction_date: req.body.payment_date || new Date(),
       status: 'completed',
@@ -1052,6 +1056,7 @@ router.post('/:id/repay', authenticate, [
               loan_id: loan.id,
               transaction_id: transaction.id,
               amount: adminShare,
+              currency: loanCurrency, // Inherit currency from loan
               description: `Admin revenue share from ${loan.loan_type} loan ${loan.loan_number} interest payment`,
               revenue_date: req.body.payment_date || new Date(),
               created_by: req.userId
@@ -1062,16 +1067,17 @@ router.post('/:id/repay', authenticate, [
           }
         }
         
-        // Check if client has savings accounts for personal interest
+        // Check if client has savings accounts for personal interest (matching currency)
         const savingsAccounts = await db.SavingsAccount.findAll({
           where: { 
             client_id: loan.client_id,
-            status: 'active'
+            status: 'active',
+            currency: loanCurrency // Only accounts with matching currency
           }
         });
 
         if (savingsAccounts.length > 0 && clientShare > 0) {
-          // Personal Interest Payment: Client share goes to client's savings
+          // Personal Interest Payment: Client share goes to client's savings (matching currency)
           const currentTransactionCount = await db.Transaction.count();
           let transactionCounter = currentTransactionCount + 1;
           
@@ -1080,9 +1086,10 @@ router.post('/:id/repay', authenticate, [
             transaction_number: personalInterestTransactionNumber,
             client_id: loan.client_id,
             loan_id: loan.id,
-            savings_account_id: savingsAccounts[0].id, // Use first active savings account
+            savings_account_id: savingsAccounts[0].id, // Use first active savings account with matching currency
             type: 'personal_interest_payment',
             amount: clientShare,
+            currency: loanCurrency, // Inherit currency from loan
             description: `Personal interest payment from ${loan.loan_type} loan ${loan.loan_number}`,
             transaction_date: req.body.payment_date || new Date(),
             status: 'completed',
@@ -1096,11 +1103,14 @@ router.post('/:id/repay', authenticate, [
           });
         }
 
-        // General Interest: Share general interest among all clients with savings
+        // General Interest: Share general interest among all clients with savings (matching currency)
         if (generalShare > 0) {
-          // Get all active savings accounts (all clients with savings)
+          // Get all active savings accounts with matching currency (all clients with savings in same currency)
           const allSavingsAccounts = await db.SavingsAccount.findAll({
-            where: { status: 'active' },
+            where: { 
+              status: 'active',
+              currency: loanCurrency // Only accounts with matching currency
+            },
             include: [{ model: db.Client, as: 'client', required: true }]
           });
 
@@ -1119,24 +1129,29 @@ router.post('/:id/repay', authenticate, [
               const generalInterestTransactionNumber = `TXN${String(transactionCounter++).padStart(8, '0')}`;
               
               // Create general interest transaction for each account
-              await db.Transaction.create({
-                transaction_number: generalInterestTransactionNumber,
-                client_id: account.client_id,
-                loan_id: loan.id,
-                savings_account_id: account.id,
-                type: 'general_interest',
-                amount: generalInterestSharePerAccount,
-                description: `General interest share from ${loan.loan_type} loan ${loan.loan_number}`,
-                transaction_date: req.body.payment_date || new Date(),
-                status: 'completed',
-                branch_id: loan.branch_id,
-                created_by: req.userId
-              });
+              // Only credit if savings account currency matches loan currency
+              const accountCurrency = account.currency || 'USD';
+              if (accountCurrency === loanCurrency) {
+                await db.Transaction.create({
+                  transaction_number: generalInterestTransactionNumber,
+                  client_id: account.client_id,
+                  loan_id: loan.id,
+                  savings_account_id: account.id,
+                  type: 'general_interest',
+                  amount: generalInterestSharePerAccount,
+                  currency: loanCurrency, // Use loan currency
+                  description: `General interest share from ${loan.loan_type} loan ${loan.loan_number}`,
+                  transaction_date: req.body.payment_date || new Date(),
+                  status: 'completed',
+                  branch_id: loan.branch_id,
+                  created_by: req.userId
+                });
 
-              // Credit general interest to savings account
-              await account.update({
-                balance: parseFloat(account.balance || 0) + generalInterestSharePerAccount
-              });
+                // Credit general interest to savings account
+                await account.update({
+                  balance: parseFloat(account.balance || 0) + generalInterestSharePerAccount
+                });
+              }
             }
           }
         }

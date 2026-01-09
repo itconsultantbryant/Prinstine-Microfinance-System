@@ -39,7 +39,8 @@ const Clients = () => {
     monthly_income: '',
     income_currency: 'USD',
     branch_id: '',
-    total_dues: ''
+    total_dues: '',
+    dues_currency: 'USD'
   });
   const [profileImage, setProfileImage] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
@@ -145,7 +146,8 @@ const Clients = () => {
         monthly_income: '',
         income_currency: 'USD',
         branch_id: '',
-        total_dues: ''
+        total_dues: '',
+        dues_currency: 'USD'
       });
       setProfileImage(null);
       setProfileImagePreview(null);
@@ -183,6 +185,7 @@ const Clients = () => {
       income_currency: client.income_currency || 'USD',
       branch_id: client.branch_id || '',
       total_dues: client.total_dues || '',
+      dues_currency: client.dues_currency || 'USD',
       status: client.status || 'active',
       kyc_status: client.kyc_status || 'pending'
     });
@@ -699,6 +702,18 @@ const Clients = () => {
                         <small className="text-muted">
                           This will be set as negative balance when client is created. Monthly payments will reduce it gradually.
                         </small>
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label">Dues Currency</label>
+                        <select
+                          className="form-select"
+                          value={formData.dues_currency || 'USD'}
+                          onChange={(e) => setFormData({ ...formData, dues_currency: e.target.value })}
+                          required
+                        >
+                          <option value="LRD">Liberian Dollar (LRD)</option>
+                          <option value="USD">US Dollar (USD)</option>
+                        </select>
                       </div>
                     </div>
                   </div>
