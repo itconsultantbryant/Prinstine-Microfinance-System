@@ -64,6 +64,9 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
   }
+  // Add pgcmicrofinance.org domain
+  allowedOrigins.push('https://pgcmicrofinance.org');
+  allowedOrigins.push('http://pgcmicrofinance.org');
   // Allow all Render domains in production (regex pattern)
   allowedOrigins.push(/^https:\/\/.*\.onrender\.com$/);
   // Allow custom domains (common patterns)

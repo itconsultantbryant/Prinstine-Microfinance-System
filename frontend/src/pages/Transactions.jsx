@@ -186,6 +186,104 @@ const Transactions = () => {
     }
   };
 
+  const handleView = async (transactionId) => {
+    try {
+      const response = await apiClient.get(`/api/transactions/${transactionId}`);
+      setSelectedTransaction(response.data.data.transaction);
+      setShowViewModal(true);
+    } catch (error) {
+      console.error('Failed to fetch transaction details:', error);
+      toast.error('Failed to load transaction details');
+    }
+  };
+
+  const handleEdit = async (transactionId) => {
+    try {
+      const response = await apiClient.get(`/api/transactions/${transactionId}`);
+      const transaction = response.data.data.transaction;
+      setSelectedTransaction(transaction);
+      setFormData({
+        client_id: transaction.client_id || '',
+        loan_id: transaction.loan_id || '',
+        savings_account_id: transaction.savings_account_id || '',
+        type: transaction.type || 'deposit',
+        amount: transaction.amount || '',
+        currency: transaction.currency || 'USD',
+        description: transaction.description || '',
+        transaction_date: transaction.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      });
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Failed to fetch transaction details:', error);
+      toast.error('Failed to load transaction details');
+    }
+  };
+
+  const handleDelete = async (transactionId) => {
+    if (!window.confirm('Are you sure you want to delete this transaction? It will be moved to the Recycle Bin.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/transactions/${transactionId}`);
+      toast.success('Transaction deleted successfully');
+      fetchTransactions();
+    } catch (error) {
+      console.error('Failed to delete transaction:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete transaction');
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = {
+        client_id: parseInt(formData.client_id),
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        currency: formData.currency || 'USD'
+      };
+
+      // Add optional fields only if they have values
+      if (formData.loan_id && formData.loan_id !== '') {
+        submitData.loan_id = parseInt(formData.loan_id);
+      }
+      if (formData.savings_account_id && formData.savings_account_id !== '') {
+        submitData.savings_account_id = parseInt(formData.savings_account_id);
+      }
+      if (formData.description && formData.description.trim() !== '') {
+        submitData.description = formData.description.trim();
+      }
+      if (formData.transaction_date) {
+        submitData.transaction_date = formData.transaction_date;
+      }
+
+      await apiClient.put(`/api/transactions/${selectedTransaction.id}`, submitData);
+      toast.success('Transaction updated successfully!');
+      setShowEditModal(false);
+      setSelectedTransaction(null);
+      setFormData({
+        client_id: '',
+        loan_id: '',
+        savings_account_id: '',
+        type: 'deposit',
+        amount: '',
+        currency: 'USD',
+        description: '',
+        transaction_date: new Date().toISOString().split('T')[0]
+      });
+      fetchTransactions();
+    } catch (error) {
+      console.error('Failed to update transaction:', error);
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const errorMessages = error.response.data.errors.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+        toast.error(`Validation errors: ${errorMessages}`);
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to update transaction');
+      }
+    }
+  };
+
   const getTypeBadge = (type) => {
     const badges = {
       deposit: 'success',
@@ -683,7 +781,7 @@ const Transactions = () => {
                   }}
                 ></button>
               </div>
-              <form onSubmit={handleEditSubmit}>
+              <form onSubmit={handleUpdate}>
                 <div className="modal-body">
                   <div className="row">
                     <div className="col-md-6 mb-3">

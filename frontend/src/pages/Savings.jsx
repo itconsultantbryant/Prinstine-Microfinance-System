@@ -14,6 +14,7 @@ const Savings = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [editingAccount, setEditingAccount] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [formData, setFormData] = useState({
     client_id: '',
