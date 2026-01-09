@@ -87,7 +87,9 @@ const Savings = () => {
         currency: 'USD',
         branch_id: ''
       });
-      fetchSavings();
+      // Immediately refresh both savings and clients
+      await fetchSavings();
+      await fetchClients();
     } catch (error) {
       console.error('Failed to save savings account:', error);
       toast.error(error.response?.data?.message || 'Failed to save savings account');
@@ -117,7 +119,9 @@ const Savings = () => {
       setShowWithdrawModal(false);
       setWithdrawData({ amount: '', description: '' });
       setReceipt(response.data.data.receipt);
-      fetchSavings(); // Real-time update
+      // Immediately refresh savings and clients
+      await fetchSavings();
+      await fetchClients();
     } catch (error) {
       console.error('Failed to process withdrawal:', error);
       toast.error(error.response?.data?.message || 'Failed to process withdrawal');
