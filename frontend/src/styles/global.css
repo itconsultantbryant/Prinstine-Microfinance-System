@@ -186,7 +186,6 @@ body {
   min-width: 800px; /* Ensure horizontal scroll on smaller screens */
   white-space: nowrap;
 }
-}
 
 .table {
   background: white;
