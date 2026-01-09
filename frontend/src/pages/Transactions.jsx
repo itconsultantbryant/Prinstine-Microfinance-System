@@ -94,30 +94,40 @@ const Transactions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Prepare data for submission - ensure all fields are properly formatted
-      const submitData = {
-        client_id: formData.client_id ? parseInt(formData.client_id) : null,
-        loan_id: formData.loan_id ? parseInt(formData.loan_id) : null,
-        savings_account_id: formData.savings_account_id ? parseInt(formData.savings_account_id) : null,
-        type: formData.type,
-        amount: parseFloat(formData.amount),
-        currency: formData.currency || 'USD',
-        description: formData.description || null,
-        transaction_date: formData.transaction_date || new Date().toISOString().split('T')[0]
-      };
-
-      // Validate required fields
-      if (!submitData.client_id) {
+      // Validate required fields before preparing data
+      if (!formData.client_id || formData.client_id === '') {
         toast.error('Please select a client');
         return;
       }
-      if (!submitData.amount || submitData.amount <= 0) {
-        toast.error('Please enter a valid amount');
+      if (!formData.amount || formData.amount === '' || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
+        toast.error('Please enter a valid amount greater than 0');
         return;
       }
-      if (!submitData.type) {
+      if (!formData.type || formData.type === '') {
         toast.error('Please select a transaction type');
         return;
+      }
+
+      // Prepare data for submission - ensure all fields are properly formatted
+      const submitData = {
+        client_id: parseInt(formData.client_id),
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        currency: formData.currency || 'USD'
+      };
+
+      // Add optional fields only if they have values
+      if (formData.loan_id && formData.loan_id !== '') {
+        submitData.loan_id = parseInt(formData.loan_id);
+      }
+      if (formData.savings_account_id && formData.savings_account_id !== '') {
+        submitData.savings_account_id = parseInt(formData.savings_account_id);
+      }
+      if (formData.description && formData.description.trim() !== '') {
+        submitData.description = formData.description.trim();
+      }
+      if (formData.transaction_date) {
+        submitData.transaction_date = formData.transaction_date;
       }
 
       console.log('Submitting transaction:', submitData);
@@ -156,10 +166,17 @@ const Transactions = () => {
     } catch (error) {
       console.error('Failed to create transaction:', error);
       console.error('Error response:', error.response?.data);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          (error.response?.data?.errors ? JSON.stringify(error.response.data.errors) : 'Failed to create transaction');
-      toast.error(errorMessage);
+      
+      // Extract and display validation errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const errorMessages = error.response.data.errors.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+        toast.error(`Validation errors: ${errorMessages}`);
+      } else {
+        const errorMessage = error.response?.data?.message || 
+                            error.response?.data?.error || 
+                            'Failed to create transaction';
+        toast.error(errorMessage);
+      }
     }
   };
 
