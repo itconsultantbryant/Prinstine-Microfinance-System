@@ -205,15 +205,16 @@ const Transactions = () => {
 
       {/* Add Modal */}
       {showModal && (
-        <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1">
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Transaction</h5>
-                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
-              </div>
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
+        <>
+          <div className="modal fade show" style={{ display: 'block', zIndex: 1050, overflowY: 'auto' }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-lg modal-dialog-scrollable" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+              <div className="modal-content" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+                <div className="modal-header" style={{ flexShrink: 0 }}>
+                  <h5 className="modal-title">Add Transaction</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowModal(false)} aria-label="Close"></button>
+                </div>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div className="modal-body" style={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
                   <div className="row">
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Client <span className="text-danger">*</span></label>
@@ -302,7 +303,7 @@ const Transactions = () => {
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid #e2e8f0' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                     Cancel
                   </button>
@@ -313,8 +314,8 @@ const Transactions = () => {
               </form>
             </div>
           </div>
-          <div className="modal-backdrop fade show" onClick={() => setShowModal(false)} style={{ zIndex: 1040 }}></div>
-        </div>
+          <div className="modal-backdrop fade show" onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1040 }}></div>
+        </>
       )}
 
       {/* Receipt Modal */}

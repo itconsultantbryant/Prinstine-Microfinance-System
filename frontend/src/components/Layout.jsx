@@ -21,13 +21,41 @@ const Layout = ({ children }) => {
   const filteredMenuItems = getMenuItemsForRole(user?.role);
 
   return (
-    <div className="d-flex" style={{ minHeight: '100vh' }}>
+    <div className="d-flex layout-container" style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="d-md-none position-fixed"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+            zIndex: 1025,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh'
+          }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       {/* Sidebar */}
       <div
-        className={`sidebar ${sidebarOpen ? 'd-block' : 'd-none d-md-block'}`}
-        style={{ width: sidebarOpen ? '280px' : '0', transition: 'width 0.3s ease' }}
+        className={`sidebar ${sidebarOpen ? 'd-block show' : 'd-none d-md-block'}`}
+        style={{ 
+          width: sidebarOpen ? '280px' : '0', 
+          transition: 'width 0.3s ease, transform 0.3s ease',
+          height: '100vh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          position: 'sticky',
+          top: 0,
+          left: 0,
+          zIndex: 1030
+        }}
       >
-        <div className="p-4">
+        <div className="p-4" style={{ paddingBottom: '100px' }}>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div className="d-flex align-items-center">
               <img 
@@ -71,7 +99,14 @@ const Layout = ({ children }) => {
         </div>
 
         {/* User Info */}
-        <div className="position-absolute bottom-0 w-100 p-3 border-top border-secondary">
+        <div className="position-fixed bottom-0 sidebar-user-info" style={{ 
+          width: sidebarOpen ? '280px' : '0',
+          transition: 'width 0.3s ease',
+          backgroundColor: '#1e293b',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '1rem',
+          zIndex: 10
+        }}>
           <div className="d-flex align-items-center text-white">
             <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" style={{ width: '40px', height: '40px' }}>
               <i className="fas fa-user"></i>
@@ -85,9 +120,9 @@ const Layout = ({ children }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+      <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0, height: '100vh', overflow: 'hidden' }}>
         {/* Header */}
-        <nav className="navbar navbar-light bg-white border-bottom shadow-sm">
+        <nav className="navbar navbar-light bg-white border-bottom shadow-sm" style={{ flexShrink: 0, zIndex: 100 }}>
           <div className="container-fluid">
             <button
               className="btn btn-link"
@@ -135,9 +170,15 @@ const Layout = ({ children }) => {
           </div>
         </nav>
 
-        {/* Page Content */}
-        <main className="flex-grow-1 p-4" style={{ backgroundColor: '#f8fafc' }}>
-          <div className="fade-in">
+        {/* Page Content - Scrollable */}
+        <main className="flex-grow-1 page-content-scrollable" style={{ 
+          backgroundColor: '#f8fafc',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '1.5rem',
+          height: 'calc(100vh - 56px)'
+        }}>
+          <div className="fade-in" style={{ maxWidth: '100%' }}>
             {children}
           </div>
         </main>

@@ -675,10 +675,10 @@ const Loans = () => {
       {/* Comprehensive Create Loan Modal */}
       {showModal && (
         <>
-          <div className="modal fade show" style={{ display: 'block', zIndex: 1050 }} tabIndex="-1">
-            <div className="modal-dialog modal-xl modal-dialog-scrollable">
-              <div className="modal-content">
-                <div className="modal-header">
+          <div className="modal fade show" style={{ display: 'block', zIndex: 1050, overflowY: 'auto' }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+              <div className="modal-content" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+                <div className="modal-header" style={{ flexShrink: 0 }}>
                   <h5 className="modal-title">New Loan Application</h5>
                   <button
                     type="button"
@@ -687,10 +687,11 @@ const Loans = () => {
                       setShowModal(false);
                       setSchedulePreview(null);
                     }}
+                    aria-label="Close"
                   ></button>
                 </div>
-                <form onSubmit={handleSubmit}>
-                  <div className="modal-body">
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div className="modal-body" style={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
                     {/* Basic Information */}
                     <h6 className="mb-3 text-primary">
                       <i className="fas fa-info-circle me-2"></i>Basic Information
@@ -1039,15 +1040,15 @@ const Loans = () => {
       {/* Repayment Modal */}
       {showRepayModal && selectedLoan && (
         <>
-          <div className="modal fade show" style={{ display: 'block', zIndex: 1050 }} tabIndex="-1">
-            <div className="modal-dialog">
-              <div className="modal-content">
-                <div className="modal-header">
+          <div className="modal fade show" style={{ display: 'block', zIndex: 1050, overflowY: 'auto' }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-dialog-scrollable" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+              <div className="modal-content" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+                <div className="modal-header" style={{ flexShrink: 0 }}>
                   <h5 className="modal-title">Make Repayment - {selectedLoan.loan_number}</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowRepayModal(false)}></button>
+                  <button type="button" className="btn-close" onClick={() => setShowRepayModal(false)} aria-label="Close"></button>
                 </div>
-                <form onSubmit={handleRepay}>
-                  <div className="modal-body">
+                <form onSubmit={handleRepay} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div className="modal-body" style={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
                     <div className="mb-3">
                       <label className="form-label">Outstanding Balance</label>
                       <div className="form-control-plaintext">
@@ -1106,7 +1107,7 @@ const Loans = () => {
                       </div>
                     )}
                   </div>
-                  <div className="modal-footer">
+                  <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid #e2e8f0' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => setShowRepayModal(false)}>
                       Cancel
                     </button>
@@ -1118,7 +1119,7 @@ const Loans = () => {
               </div>
             </div>
           </div>
-          <div className="modal-backdrop fade show" onClick={() => setShowRepayModal(false)} style={{ zIndex: 1040 }}></div>
+          <div className="modal-backdrop fade show" onClick={() => setShowRepayModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1040 }}></div>
         </>
       )}
 
