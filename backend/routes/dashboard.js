@@ -78,6 +78,12 @@ router.get('/', authenticate, async (req, res) => {
       let clientsPaidDuesUSD = 0;
       let totalFinesLRD = 0;
       let totalFinesUSD = 0;
+      
+      // Borrower-specific interest calculations
+      let personalInterestLRD = 0;
+      let personalInterestUSD = 0;
+      let generalInterestLRD = 0;
+      let generalInterestUSD = 0;
 
       try {
         // Fetch all data at once for efficiency
@@ -168,10 +174,6 @@ router.get('/', authenticate, async (req, res) => {
         
         // Calculate currency-separated transactions
         // For borrowers, also calculate personal interest, general interest, and fines
-        let personalInterestLRD = 0;
-        let personalInterestUSD = 0;
-        let generalInterestLRD = 0;
-        let generalInterestUSD = 0;
         
         allTransactions.forEach(transaction => {
           const currency = transaction.currency || 'USD';
