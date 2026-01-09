@@ -94,7 +94,34 @@ const Transactions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await apiClient.post('/api/transactions', formData);
+      // Prepare data for submission - ensure all fields are properly formatted
+      const submitData = {
+        client_id: formData.client_id ? parseInt(formData.client_id) : null,
+        loan_id: formData.loan_id ? parseInt(formData.loan_id) : null,
+        savings_account_id: formData.savings_account_id ? parseInt(formData.savings_account_id) : null,
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        currency: formData.currency || 'USD',
+        description: formData.description || null,
+        transaction_date: formData.transaction_date || new Date().toISOString().split('T')[0]
+      };
+
+      // Validate required fields
+      if (!submitData.client_id) {
+        toast.error('Please select a client');
+        return;
+      }
+      if (!submitData.amount || submitData.amount <= 0) {
+        toast.error('Please enter a valid amount');
+        return;
+      }
+      if (!submitData.type) {
+        toast.error('Please select a transaction type');
+        return;
+      }
+
+      console.log('Submitting transaction:', submitData);
+      const response = await apiClient.post('/api/transactions', submitData);
       toast.success('Transaction created successfully!');
       setShowModal(false);
       
@@ -128,7 +155,11 @@ const Transactions = () => {
       fetchTransactions();
     } catch (error) {
       console.error('Failed to create transaction:', error);
-      toast.error(error.response?.data?.message || 'Failed to create transaction');
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          (error.response?.data?.errors ? JSON.stringify(error.response.data.errors) : 'Failed to create transaction');
+      toast.error(errorMessage);
     }
   };
 

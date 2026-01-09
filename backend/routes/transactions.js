@@ -57,12 +57,38 @@ router.post('/', [
   body('client_id').isInt().withMessage('Client ID is required'),
   body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest', 'due_payment']).withMessage('Valid transaction type is required'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount is required'),
-  body('description').optional().isString()
+  body('currency').optional().isIn(['LRD', 'USD']).withMessage('Currency must be LRD or USD'),
+  body('description').optional().isString(),
+  body('loan_id').optional().isInt(),
+  body('savings_account_id').optional().isInt(),
+  body('transaction_date').optional().isISO8601().toDate()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    // Validate client exists
+    const client = await db.Client.findByPk(req.body.client_id);
+    if (!client) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+
+    // Validate loan if provided
+    if (req.body.loan_id) {
+      const loan = await db.Loan.findByPk(req.body.loan_id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan not found' });
+      }
+    }
+
+    // Validate savings account if provided
+    if (req.body.savings_account_id) {
+      const savings = await db.SavingsAccount.findByPk(req.body.savings_account_id);
+      if (!savings) {
+        return res.status(404).json({ success: false, message: 'Savings account not found' });
+      }
     }
 
     // Generate transaction number
@@ -88,10 +114,23 @@ router.post('/', [
       }
     }
     
-    // If due payment, inherit currency from client's dues_currency
-    if (req.body.type === 'due_payment' && req.body.client_id && !req.body.currency) {
-      const client = await db.Client.findByPk(req.body.client_id);
-      if (client && client.dues_currency) {
+    // If due payment, validate and inherit currency from client's dues_currency
+    if (req.body.type === 'due_payment') {
+      if (!client.dues_currency) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Client does not have a dues currency set. Please set dues currency for this client first.' 
+        });
+      }
+      // If currency provided, validate it matches client's dues currency
+      if (req.body.currency && req.body.currency !== client.dues_currency) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Due payment currency must match client's dues currency (${client.dues_currency})` 
+        });
+      }
+      // If no currency provided, use client's dues currency
+      if (!req.body.currency) {
         currency = client.dues_currency;
       }
     }
@@ -101,45 +140,57 @@ router.post('/', [
       currency = 'USD'; // Default to USD if invalid
     }
 
-    const transaction = await db.Transaction.create({
-      ...req.body,
+    // Prepare transaction data
+    const transactionData = {
       transaction_number: transactionNumber,
-      branch_id: req.body.branch_id || req.user?.branch_id || null,
+      client_id: parseInt(req.body.client_id),
+      loan_id: req.body.loan_id ? parseInt(req.body.loan_id) : null,
+      savings_account_id: req.body.savings_account_id ? parseInt(req.body.savings_account_id) : null,
+      type: req.body.type,
+      amount: parseFloat(req.body.amount),
+      currency: currency,
+      description: req.body.description || null,
+      branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'completed',
-      transaction_date: req.body.transaction_date || new Date(),
-      created_by: req.userId,
-      currency: currency // Set currency for transaction
-    });
+      transaction_date: req.body.transaction_date ? new Date(req.body.transaction_date) : new Date(),
+      created_by: req.userId
+    };
+
+    const transaction = await db.Transaction.create(transactionData);
 
     // Handle due payment - reduce client's total_dues (only if same currency)
-    if (req.body.type === 'due_payment' && req.body.client_id) {
-      const client = await db.Client.findByPk(req.body.client_id);
-      if (client) {
-        // Only process payment if currency matches client's dues currency
-        if (client.dues_currency === currency) {
-          const paymentAmount = parseFloat(req.body.amount || 0);
-          const currentDues = parseFloat(client.total_dues || 0);
-          // Add payment amount to negative dues (reduces the negative balance)
-          const newDues = Math.min(0, currentDues + paymentAmount);
-          await client.update({ total_dues: newDues });
-        } else {
-          console.warn(`Due payment currency (${currency}) does not match client dues currency (${client.dues_currency})`);
-        }
+    if (req.body.type === 'due_payment' && client) {
+      // Currency should already match at this point (validated above)
+      if (client.dues_currency === currency) {
+        const paymentAmount = parseFloat(req.body.amount || 0);
+        const currentDues = parseFloat(client.total_dues || 0);
+        // Add payment amount to negative dues (reduces the negative balance)
+        const newDues = Math.min(0, currentDues + paymentAmount);
+        await client.update({ total_dues: newDues });
+      } else {
+        console.warn(`Due payment currency (${currency}) does not match client dues currency (${client.dues_currency})`);
       }
     }
 
-    // Get client for receipt
-    const client = await db.Client.findByPk(req.body.client_id);
+    // Reload transaction with associations for response
+    const createdTransaction = await db.Transaction.findByPk(transaction.id, {
+      include: [
+        { model: db.Client, as: 'client', required: false },
+        { model: db.Loan, as: 'loan', required: false },
+        { model: db.SavingsAccount, as: 'savingsAccount', required: false }
+      ]
+    });
 
     res.status(201).json({
       success: true,
       message: 'Transaction created successfully',
       data: { 
-        transaction,
+        transaction: createdTransaction,
         receipt: {
           transaction_number: transactionNumber,
           client_name: client ? `${client.first_name} ${client.last_name}` : '',
           amount: req.body.amount,
+          currency: currency,
           date: transaction.transaction_date,
           type: req.body.type,
           description: req.body.description
@@ -148,10 +199,13 @@ router.post('/', [
     });
   } catch (error) {
     console.error('Create transaction error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', JSON.stringify(req.body, null, 2));
     res.status(500).json({
       success: false,
       message: 'Failed to create transaction',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
