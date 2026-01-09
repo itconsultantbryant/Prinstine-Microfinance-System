@@ -395,27 +395,68 @@ router.put('/:id', authenticate, upload.single('profile_image'), async (req, res
   }
 });
 
-// Get client loans
+// Get client loans with full details including payment schedules
 router.get('/:id/loans', authenticate, async (req, res) => {
   try {
     const loans = await db.Loan.findAll({
       where: { client_id: req.params.id },
       include: [
-        { model: db.Branch, as: 'branch', required: false },
-        { model: db.Client, as: 'client', required: false }
+        { model: db.Branch, as: 'branch', required: false, attributes: ['id', 'name', 'code'] },
+        { model: db.Client, as: 'client', required: false, attributes: ['id', 'first_name', 'last_name', 'client_number'] },
+        { 
+          model: db.LoanRepayment, 
+          as: 'repayments', 
+          required: false,
+          order: [['installment_number', 'ASC']],
+          attributes: ['id', 'repayment_number', 'installment_number', 'amount', 'principal_amount', 'interest_amount', 'penalty_amount', 'due_date', 'payment_date', 'status', 'payment_method']
+        },
+        { model: db.Collateral, as: 'collateral', required: false, attributes: ['id', 'type', 'description', 'estimated_value', 'status'] }
       ],
       order: [['createdAt', 'DESC']]
     });
 
+    // Parse repayment schedules for each loan
+    const loansWithSchedules = loans.map(loan => {
+      const loanData = loan.toJSON();
+      
+      // Parse repayment_schedule if it's a string
+      if (loanData.repayment_schedule && typeof loanData.repayment_schedule === 'string') {
+        try {
+          loanData.repayment_schedule = JSON.parse(loanData.repayment_schedule);
+        } catch (e) {
+          loanData.repayment_schedule = [];
+        }
+      }
+      
+      // If no schedule in loan data, try to build from repayments
+      if (!loanData.repayment_schedule || loanData.repayment_schedule.length === 0) {
+        if (loanData.repayments && loanData.repayments.length > 0) {
+          loanData.repayment_schedule = loanData.repayments.map(repayment => ({
+            installment_number: repayment.installment_number,
+            due_date: repayment.due_date,
+            principal_payment: parseFloat(repayment.principal_amount || 0),
+            interest_payment: parseFloat(repayment.interest_amount || 0),
+            total_payment: parseFloat(repayment.amount || 0),
+            status: repayment.status,
+            payment_date: repayment.payment_date,
+            paid_amount: repayment.payment_date ? parseFloat(repayment.amount || 0) : 0
+          }));
+        }
+      }
+      
+      return loanData;
+    });
+
     res.json({
       success: true,
-      data: { loans }
+      data: { loans: loansWithSchedules }
     });
   } catch (error) {
+    console.error('Get client loans error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch client loans',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

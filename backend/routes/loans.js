@@ -106,7 +106,8 @@ router.get('/:id', authenticate, async (req, res) => {
           model: db.LoanRepayment, 
           as: 'repayments', 
           required: false,
-          attributes: ['id', 'repayment_number', 'installment_number', 'amount', 'principal_amount', 'interest_amount', 'penalty_amount', 'due_date', 'payment_date', 'status', 'payment_method']
+          attributes: ['id', 'repayment_number', 'installment_number', 'amount', 'principal_amount', 'interest_amount', 'penalty_amount', 'due_date', 'payment_date', 'status', 'payment_method'],
+          order: [['installment_number', 'ASC']]
         }
       ]
     });

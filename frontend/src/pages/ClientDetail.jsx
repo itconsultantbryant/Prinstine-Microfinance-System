@@ -341,10 +341,12 @@ const ClientDetail = () => {
                     <thead>
                       <tr>
                         <th>Loan Number</th>
+                        <th>Loan Type</th>
                         <th>Amount</th>
                         <th>Interest Rate</th>
                         <th>Term</th>
                         <th>Outstanding</th>
+                        <th>Total Paid</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -353,19 +355,32 @@ const ClientDetail = () => {
                       {loans.map((loan) => (
                         <tr key={loan.id}>
                           <td><strong>{loan.loan_number}</strong></td>
-                          <td>${parseFloat(loan.amount).toLocaleString()}</td>
-                          <td>{loan.interest_rate}%</td>
-                          <td>{loan.term_months} months</td>
-                          <td>${parseFloat(loan.outstanding_balance || 0).toLocaleString()}</td>
                           <td>
-                            <span className={`badge bg-${loan.status === 'active' ? 'success' : loan.status === 'pending' ? 'warning' : 'secondary'}`}>
-                              {loan.status}
+                            <span className="badge bg-primary">
+                              {loan.loan_type ? loan.loan_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Personal'}
+                            </span>
+                          </td>
+                          <td>${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>{loan.interest_rate || 0}%</td>
+                          <td>{loan.term_months || 0} months</td>
+                          <td><strong className="text-danger">${parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                          <td className="text-success">${parseFloat(loan.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>
+                            <span className={`badge bg-${
+                              loan.status === 'active' ? 'success' : 
+                              loan.status === 'pending' ? 'warning' : 
+                              loan.status === 'completed' ? 'info' :
+                              loan.status === 'overdue' ? 'danger' : 'secondary'
+                            }`}>
+                              {loan.status || 'pending'}
                             </span>
                           </td>
                           <td>
-                            <Link to={`/loans/${loan.id}`} className="btn btn-sm btn-outline-primary">
-                              <i className="fas fa-eye"></i>
-                            </Link>
+                            <div className="btn-group" role="group">
+                              <Link to={`/loans/${loan.id}`} className="btn btn-sm btn-outline-primary" title="View Full Details">
+                                <i className="fas fa-eye me-1"></i> View
+                              </Link>
+                            </div>
                           </td>
                         </tr>
                       ))}

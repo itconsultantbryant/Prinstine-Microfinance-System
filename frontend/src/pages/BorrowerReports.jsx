@@ -224,41 +224,63 @@ const BorrowerReports = () => {
           {reportData.loans.length > 0 ? (
             <div className="table-responsive">
               <table className="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Loan Number</th>
-                    <th>Loan Type</th>
-                    <th>Amount</th>
-                    <th>Interest Rate</th>
-                    <th>Outstanding</th>
-                    <th>Total Paid</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.loans.map((loan) => (
-                    <tr key={loan.id}>
-                      <td><strong>{loan.loan_number}</strong></td>
-                      <td>{loan.loan_type || 'N/A'}</td>
-                      <td>${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td>{loan.interest_rate || 0}%</td>
-                      <td>${parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td>${parseFloat(loan.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td>
-                        <span className={`badge bg-${loan.status === 'active' ? 'success' : loan.status === 'pending' ? 'warning' : 'secondary'}`}>
-                          {loan.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                    <thead>
+                      <tr>
+                        <th>Loan Number</th>
+                        <th>Loan Type</th>
+                        <th>Amount</th>
+                        <th>Interest Rate</th>
+                        <th>Term</th>
+                        <th>Monthly Payment</th>
+                        <th>Outstanding</th>
+                        <th>Total Paid</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.loans.map((loan) => (
+                        <tr key={loan.id}>
+                          <td><strong>{loan.loan_number}</strong></td>
+                          <td>
+                            <span className="badge bg-primary">
+                              {loan.loan_type ? loan.loan_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Personal'}
+                            </span>
+                          </td>
+                          <td>${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>{loan.interest_rate || 0}%</td>
+                          <td>{loan.term_months || 0} months</td>
+                          <td>${parseFloat(loan.monthly_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td><strong className="text-danger">${parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                          <td className="text-success">${parseFloat(loan.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>
+                            <span className={`badge bg-${
+                              loan.status === 'active' ? 'success' : 
+                              loan.status === 'pending' ? 'warning' : 
+                              loan.status === 'completed' ? 'info' :
+                              loan.status === 'overdue' ? 'danger' : 'secondary'
+                            }`}>
+                              {loan.status || 'pending'}
+                            </span>
+                          </td>
+                          <td>
+                            <Link to={`/loans/${loan.id}`} className="btn btn-sm btn-outline-primary" title="View Full Details & Payment Schedule">
+                              <i className="fas fa-eye me-1"></i> View Details
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
                 </tbody>
                 <tfoot>
                   <tr className="table-info">
                     <th colSpan="2">Total</th>
                     <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
                     <th></th>
+                    <th></th>
+                    <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.monthly_payment || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
                     <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.outstanding_balance || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
                     <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.total_paid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
+                    <th></th>
                     <th></th>
                   </tr>
                 </tfoot>
