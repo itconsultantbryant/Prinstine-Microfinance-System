@@ -240,16 +240,14 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
       });
 
       if (!existingUser) {
-        // Generate username from email or name
-        let baseUsername = email.split('@')[0] || 
-                          `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
+        // Use client_number as username for borrower login
+        let username = clientNumber;
         
-        // Ensure username is unique
-        let username = baseUsername;
+        // Ensure username is unique (in case client_number already exists as username)
         let usernameExists = await db.User.findOne({ where: { username } });
         let counter = 1;
         while (usernameExists) {
-          username = `${baseUsername}${counter}`;
+          username = `${clientNumber}_${counter}`;
           usernameExists = await db.User.findOne({ where: { username } });
           counter++;
         }

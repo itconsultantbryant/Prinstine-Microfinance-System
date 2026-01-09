@@ -270,7 +270,16 @@ body {
   box-shadow: var(--shadow-lg);
   overflow-y: auto;
   overflow-x: hidden;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1030;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    position: fixed;
+  }
 }
 
 .sidebar-link {
@@ -349,11 +358,82 @@ body {
 /* Layout Container */
 .layout-container {
   position: relative;
+  width: 100%;
+  overflow: hidden;
 }
 
 .page-content-scrollable {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure proper alignment for all pages */
+.fade-in {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix container alignment */
+.container-fluid,
+.container {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Fix row alignment */
+.row {
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+  width: calc(100% + 1.5rem);
+  box-sizing: border-box;
+}
+
+.row > * {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  box-sizing: border-box;
+}
+
+/* Main content wrapper */
+.main-content-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+}
+
+@media (min-width: 768px) {
+  .main-content-wrapper.sidebar-open {
+    margin-left: 280px;
+    width: calc(100% - 280px);
+  }
+  
+  .main-content-wrapper.sidebar-closed {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .main-content-wrapper {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.show {
+    transform: translateX(0);
+  }
 }
 
 /* Modal Styles - Fixed Scrolling */
@@ -459,7 +539,7 @@ body {
   }
 
   .layout-container {
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .sidebar {
@@ -469,10 +549,17 @@ body {
     z-index: 1030;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
+    width: 280px !important;
   }
 
   .sidebar.show {
     transform: translateX(0);
+  }
+
+  /* On mobile, main content should be full width when sidebar is closed */
+  .layout-container > .flex-grow-1 {
+    margin-left: 0 !important;
+    width: 100% !important;
   }
 
   .modal-dialog {

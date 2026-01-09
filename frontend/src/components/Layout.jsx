@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getMenuItemsForRole, formatRoleName } from '../utils/permissions';
@@ -7,8 +7,22 @@ const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -21,7 +35,7 @@ const Layout = ({ children }) => {
   const filteredMenuItems = getMenuItemsForRole(user?.role);
 
   return (
-    <div className="d-flex layout-container" style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div className="d-flex layout-container" style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden', position: 'relative', width: '100%' }}>
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -49,10 +63,11 @@ const Layout = ({ children }) => {
           height: '100vh',
           overflowY: 'auto',
           overflowX: 'hidden',
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
           left: 0,
-          zIndex: 1030
+          zIndex: 1030,
+          flexShrink: 0
         }}
       >
         <div className="p-4" style={{ paddingBottom: '100px' }}>
@@ -120,13 +135,20 @@ const Layout = ({ children }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0, height: '100vh', overflow: 'hidden' }}>
+      <div className={`flex-grow-1 d-flex flex-column main-content-wrapper ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`} style={{ 
+        minWidth: 0, 
+        height: '100vh', 
+        overflow: 'hidden',
+        transition: 'margin-left 0.3s ease',
+        width: '100%'
+      }}>
         {/* Header */}
-        <nav className="navbar navbar-light bg-white border-bottom shadow-sm" style={{ flexShrink: 0, zIndex: 100 }}>
-          <div className="container-fluid">
+        <nav className="navbar navbar-light bg-white border-bottom shadow-sm" style={{ flexShrink: 0, zIndex: 100, width: '100%' }}>
+          <div className="container-fluid d-flex justify-content-between align-items-center">
             <button
-              className="btn btn-link"
+              className="btn btn-link p-2"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{ minWidth: '40px' }}
             >
               <i className="fas fa-bars"></i>
             </button>
@@ -135,16 +157,15 @@ const Layout = ({ children }) => {
                 <i className="fas fa-bell text-muted me-3"></i>
                 <div className="dropdown">
                   <button
-                    className="btn btn-link text-decoration-none dropdown-toggle"
+                    className="btn btn-link text-decoration-none dropdown-toggle d-flex align-items-center"
                     type="button"
                     data-bs-toggle="dropdown"
+                    style={{ border: 'none', padding: '0.5rem' }}
                   >
-                    <div className="d-flex align-items-center">
-                      <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2 text-white" style={{ width: '32px', height: '32px' }}>
-                        {user?.name?.charAt(0)}
-                      </div>
-                      <span className="text-dark">{user?.name}</span>
+                    <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2 text-white" style={{ width: '32px', height: '32px', fontSize: '14px' }}>
+                      {user?.name?.charAt(0)?.toUpperCase()}
                     </div>
+                    <span className="text-dark">{user?.name}</span>
                   </button>
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li>
@@ -176,9 +197,10 @@ const Layout = ({ children }) => {
           overflowY: 'auto',
           overflowX: 'hidden',
           padding: '1.5rem',
+          width: '100%',
           height: 'calc(100vh - 56px)'
         }}>
-          <div className="fade-in" style={{ maxWidth: '100%' }}>
+          <div className="fade-in" style={{ maxWidth: '100%', width: '100%' }}>
             {children}
           </div>
         </main>
