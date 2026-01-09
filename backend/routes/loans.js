@@ -162,7 +162,7 @@ router.post('/', authenticate, [
     }
 
     const userRole = req.user?.role || 'user';
-    let clientId = req.body.client_id;
+    let clientId = req.body.client_id ? parseInt(req.body.client_id) : null;
 
     // For borrower role, get their client_id automatically
     if (userRole === 'borrower') {
@@ -176,6 +176,23 @@ router.post('/', authenticate, [
       clientId = client.id;
       // For borrowers, set status to 'pending' (loan request)
       req.body.status = 'pending';
+    } else {
+      // For non-borrower roles, client_id is required
+      if (!clientId || isNaN(clientId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Client ID is required for loan creation.'
+        });
+      }
+
+      // Verify client exists
+      const client = await db.Client.findByPk(clientId);
+      if (!client) {
+        return res.status(400).json({
+          success: false,
+          message: 'Client not found. Please select a valid client.'
+        });
+      }
     }
 
     const loanCalculation = require('../services/loanCalculation');
@@ -188,14 +205,38 @@ router.post('/', authenticate, [
     const loanType = req.body.loan_type || 'personal';
     const loanTypeConfig = getLoanTypeConfig(loanType);
     
+    // Validate required numeric fields
+    if (!loanTypeConfig) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid loan type: ${loanType}.`
+      });
+    }
+
     // Get loan amount (total requested)
     const loanAmount = parseFloat(req.body.amount);
+    if (isNaN(loanAmount) || loanAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid loan amount is required (must be greater than 0).'
+      });
+    }
     
     // Get interest rate (from form or loan type config)
-    const interestRate = parseFloat(req.body.interest_rate) || loanTypeConfig.interestRate;
+    let interestRate = parseFloat(req.body.interest_rate);
+    if (isNaN(interestRate) || interestRate < 0) {
+      interestRate = loanTypeConfig.interestRate || 0;
+    }
     
     const termMonths = parseInt(req.body.term_months);
-    const interestMethod = req.body.interest_method || loanTypeConfig.interestMethod;
+    if (isNaN(termMonths) || termMonths < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid loan term is required (must be at least 1 month).'
+      });
+    }
+
+    const interestMethod = req.body.interest_method || loanTypeConfig.interestMethod || 'declining_balance';
     const paymentFrequency = req.body.payment_frequency || 'monthly';
     const disbursementDate = req.body.disbursement_date || new Date().toISOString().split('T')[0];
 
@@ -271,10 +312,28 @@ router.post('/', authenticate, [
     // For Personal/Excess loans, principal is the loan amount and interest is calculated on it
     const outstandingBalance = principal + totalInterest + defaultChargesAmount;
 
+    // Validate collateral_id if provided
+    let collateralId = null;
+    if (req.body.collateral_id) {
+      const collateralIdInt = parseInt(req.body.collateral_id);
+      if (!isNaN(collateralIdInt)) {
+        // Verify collateral exists and belongs to the client
+        const collateral = await db.Collateral.findByPk(collateralIdInt);
+        if (collateral && collateral.client_id === clientId) {
+          collateralId = collateralIdInt;
+        } else if (collateral && collateral.client_id !== clientId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Selected collateral does not belong to the selected client.'
+          });
+        }
+      }
+    }
+
     // Prepare loan data, ensuring proper types
     const loanData = {
       loan_number: loanNumber,
-      client_id: parseInt(clientId),
+      client_id: clientId, // Already validated and parsed
       amount: loanAmount, // Total loan amount requested
       principal_amount: principal, // Principal after upfront deduction
       interest_rate: interestRate,
@@ -282,18 +341,18 @@ router.post('/', authenticate, [
       loan_type: loanType,
       payment_frequency: paymentFrequency,
       interest_method: interestMethod,
-      loan_purpose: req.body.loan_purpose || null,
-      collateral_id: req.body.collateral_id ? parseInt(req.body.collateral_id) : null,
+      loan_purpose: req.body.loan_purpose ? String(req.body.loan_purpose).trim() : null,
+      collateral_id: collateralId,
       disbursement_date: disbursementDate,
       branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
-      status: 'pending',
+      status: userRole === 'borrower' ? 'pending' : 'pending',
       outstanding_balance: outstandingBalance, // Principal + total interest + default charges
-      monthly_payment: scheduleData.monthly_payment,
-      total_interest: totalInterest, // Total interest (upfront for Personal, calculated for others)
-      total_amount: totalAmount, // Total amount (loan amount for Personal, principal + interest + charges for others)
-      repayment_schedule: JSON.stringify(scheduleData.schedule),
+      monthly_payment: scheduleData.monthly_payment || 0,
+      total_interest: totalInterest || 0, // Total interest (calculated on loan amount or principal)
+      total_amount: totalAmount || loanAmount, // Total amount (loan amount + interest + charges)
+      repayment_schedule: JSON.stringify(scheduleData.schedule || []),
       application_date: disbursementDate,
-      notes: req.body.notes || null,
+      notes: req.body.notes ? String(req.body.notes).trim() : null,
       created_by: req.userId,
       upfront_percentage: upfrontPercentage,
       upfront_amount: upfrontAmount,

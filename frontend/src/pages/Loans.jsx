@@ -313,10 +313,23 @@ const Loans = () => {
       fetchLoans();
     } catch (error) {
       console.error('Loan creation error:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          (error.response?.data?.errors && error.response.data.errors.map(e => e.msg).join(', ')) ||
-                          'Failed to create loan';
+      console.error('Error response:', error.response?.data);
+      
+      let errorMessage = 'Failed to create loan';
+      
+      if (error.response?.data) {
+        // Handle validation errors array
+        if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.map(e => e.msg || e.message || e).join(', ');
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast.error(errorMessage);
     }
   };
