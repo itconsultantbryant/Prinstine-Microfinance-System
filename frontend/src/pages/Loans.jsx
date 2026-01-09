@@ -674,7 +674,7 @@ const Loans = () => {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Filters Section */}
       <div className="card mb-4">
         <div className="card-body">
           <div className="row g-3">
