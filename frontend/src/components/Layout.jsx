@@ -9,11 +9,14 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      const desktop = window.innerWidth >= 768;
+      setIsDesktop(desktop);
+      if (desktop) {
         setSidebarOpen(true);
       } else {
         setSidebarOpen(false);
@@ -139,8 +142,9 @@ const Layout = ({ children }) => {
         minWidth: 0, 
         height: '100vh', 
         overflow: 'hidden',
-        transition: 'margin-left 0.3s ease',
-        width: '100%'
+        transition: 'margin-left 0.3s ease, width 0.3s ease',
+        width: '100%',
+        marginLeft: isDesktop && sidebarOpen ? '280px' : '0'
       }}>
         {/* Header */}
         <nav className="navbar navbar-light bg-white border-bottom shadow-sm" style={{ flexShrink: 0, zIndex: 100, width: '100%' }}>
@@ -198,9 +202,11 @@ const Layout = ({ children }) => {
           overflowX: 'hidden',
           padding: '1.5rem',
           width: '100%',
-          height: 'calc(100vh - 56px)'
+          maxWidth: '100%',
+          height: 'calc(100vh - 56px)',
+          boxSizing: 'border-box'
         }}>
-          <div className="fade-in" style={{ maxWidth: '100%', width: '100%' }}>
+          <div className="fade-in" style={{ maxWidth: '100%', width: '100%', boxSizing: 'border-box' }}>
             {children}
           </div>
         </main>

@@ -374,6 +374,8 @@ body {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 /* Fix container alignment */
@@ -386,6 +388,15 @@ body {
   box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Ensure all cards and content are properly aligned */
+.card,
+.card-body,
+.card-header {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Fix row alignment */
@@ -407,17 +418,18 @@ body {
   width: 100%;
   box-sizing: border-box;
   margin-left: 0;
+  position: relative;
 }
 
 @media (min-width: 768px) {
   .main-content-wrapper.sidebar-open {
-    margin-left: 280px;
-    width: calc(100% - 280px);
+    margin-left: 280px !important;
+    width: calc(100% - 280px) !important;
   }
   
   .main-content-wrapper.sidebar-closed {
-    margin-left: 0;
-    width: 100%;
+    margin-left: 0 !important;
+    width: 100% !important;
   }
 }
 
