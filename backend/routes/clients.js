@@ -287,7 +287,7 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
     res.status(201).json({
       success: true,
       message: borrowerUser 
-        ? 'Client created successfully. Borrower user account has been automatically created. Admin should update the password for secure login.'
+        ? `Client created successfully. Borrower user account created with username: ${borrowerUser.username} (client number). Admin should update the password for secure login.`
         : 'Client created successfully',
       data: { 
         client,
@@ -296,7 +296,8 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
           username: borrowerUser.username,
           email: borrowerUser.email,
           role: borrowerUser.role,
-          note: 'Temporary password set. Admin should update password for secure login.'
+          client_number: clientNumber,
+          note: `Username for login: ${borrowerUser.username} (client number). Temporary password set. Admin should update password for secure login.`
         } : null
       }
     });
