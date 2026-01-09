@@ -366,7 +366,7 @@ const Savings = () => {
                       Cancel
                     </button>
                     <button type="submit" className="btn btn-primary">
-                      <i className="fas fa-save me-2"></i>Create Account
+                      <i className="fas fa-save me-2"></i>{editingAccount ? 'Update Account' : 'Create Account'}
                     </button>
                   </div>
                 </form>
