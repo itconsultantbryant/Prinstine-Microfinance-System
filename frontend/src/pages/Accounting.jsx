@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
+import { exportToPDF, exportToExcel, formatCurrency, formatDate } from '../utils/exportUtils';
 
 const Accounting = () => {
   const [accounts, setAccounts] = useState([]);
@@ -284,6 +285,134 @@ const Accounting = () => {
     return colors[type] || 'secondary';
   };
 
+  const handleExportPDF = () => {
+    if (activeTab === 'chart') {
+      // Export Chart of Accounts
+      const columns = [
+        { key: 'code', header: 'Account Code' },
+        { key: 'name', header: 'Account Name' },
+        { key: 'type', header: 'Type' },
+        { key: 'normal_balance', header: 'Normal Balance' },
+        { key: 'opening_balance', header: 'Opening Balance', format: (value) => formatCurrency(value || 0) },
+        { key: 'category', header: 'Category' },
+        { key: 'is_active', header: 'Status', format: (value) => value ? 'Active' : 'Inactive' }
+      ];
+      exportToPDF(accounts, columns, 'Chart of Accounts', 'chart_of_accounts');
+      toast.success('Chart of Accounts exported to PDF successfully!');
+    } else if (activeTab === 'ledger') {
+      // Export General Ledger
+      const columns = [
+        { key: 'date', header: 'Date', format: formatDate },
+        { key: 'account_code', header: 'Account Code' },
+        { key: 'account_name', header: 'Account Name' },
+        { key: 'description', header: 'Description' },
+        { key: 'debit', header: 'Debit', format: (value) => formatCurrency(value || 0) },
+        { key: 'credit', header: 'Credit', format: (value) => formatCurrency(value || 0) },
+        { key: 'balance', header: 'Balance', format: (value) => formatCurrency(value || 0) }
+      ];
+      exportToPDF(ledgerEntries, columns, 'General Ledger', 'general_ledger');
+      toast.success('General Ledger exported to PDF successfully!');
+    } else {
+      // Export Financial Summary
+      const exportData = [
+        {
+          'Metric': 'Total Savings (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.totalSavings, 'LRD')
+        },
+        {
+          'Metric': 'Total Savings (USD)',
+          'Amount': formatCurrency(financialSummary.usd.totalSavings, 'USD')
+        },
+        {
+          'Metric': 'Outstanding Loans (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.totalOutstandingLoans, 'LRD')
+        },
+        {
+          'Metric': 'Outstanding Loans (USD)',
+          'Amount': formatCurrency(financialSummary.usd.totalOutstandingLoans, 'USD')
+        },
+        {
+          'Metric': 'Outstanding Dues (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.outstandingDues, 'LRD')
+        },
+        {
+          'Metric': 'Outstanding Dues (USD)',
+          'Amount': formatCurrency(financialSummary.usd.outstandingDues, 'USD')
+        }
+      ];
+      const columns = [
+        { key: 'Metric', header: 'Metric' },
+        { key: 'Amount', header: 'Amount' }
+      ];
+      exportToPDF(exportData, columns, 'Financial Summary', 'financial_summary');
+      toast.success('Financial Summary exported to PDF successfully!');
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (activeTab === 'chart') {
+      // Export Chart of Accounts
+      const columns = [
+        { key: 'code', header: 'Account Code' },
+        { key: 'name', header: 'Account Name' },
+        { key: 'type', header: 'Type' },
+        { key: 'normal_balance', header: 'Normal Balance' },
+        { key: 'opening_balance', header: 'Opening Balance', format: (value) => formatCurrency(value || 0) },
+        { key: 'category', header: 'Category' },
+        { key: 'is_active', header: 'Status', format: (value) => value ? 'Active' : 'Inactive' }
+      ];
+      exportToExcel(accounts, columns, 'Chart of Accounts', 'chart_of_accounts');
+      toast.success('Chart of Accounts exported to Excel successfully!');
+    } else if (activeTab === 'ledger') {
+      // Export General Ledger
+      const columns = [
+        { key: 'date', header: 'Date', format: formatDate },
+        { key: 'account_code', header: 'Account Code' },
+        { key: 'account_name', header: 'Account Name' },
+        { key: 'description', header: 'Description' },
+        { key: 'debit', header: 'Debit', format: (value) => formatCurrency(value || 0) },
+        { key: 'credit', header: 'Credit', format: (value) => formatCurrency(value || 0) },
+        { key: 'balance', header: 'Balance', format: (value) => formatCurrency(value || 0) }
+      ];
+      exportToExcel(ledgerEntries, columns, 'General Ledger', 'general_ledger');
+      toast.success('General Ledger exported to Excel successfully!');
+    } else {
+      // Export Financial Summary
+      const exportData = [
+        {
+          'Metric': 'Total Savings (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.totalSavings, 'LRD')
+        },
+        {
+          'Metric': 'Total Savings (USD)',
+          'Amount': formatCurrency(financialSummary.usd.totalSavings, 'USD')
+        },
+        {
+          'Metric': 'Outstanding Loans (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.totalOutstandingLoans, 'LRD')
+        },
+        {
+          'Metric': 'Outstanding Loans (USD)',
+          'Amount': formatCurrency(financialSummary.usd.totalOutstandingLoans, 'USD')
+        },
+        {
+          'Metric': 'Outstanding Dues (LRD)',
+          'Amount': formatCurrency(financialSummary.lrd.outstandingDues, 'LRD')
+        },
+        {
+          'Metric': 'Outstanding Dues (USD)',
+          'Amount': formatCurrency(financialSummary.usd.outstandingDues, 'USD')
+        }
+      ];
+      const columns = [
+        { key: 'Metric', header: 'Metric' },
+        { key: 'Amount', header: 'Amount' }
+      ];
+      exportToExcel(exportData, columns, 'Financial Summary', 'financial_summary');
+      toast.success('Financial Summary exported to Excel successfully!');
+    }
+  };
+
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -292,8 +421,19 @@ const Accounting = () => {
           <p className="text-muted">Financial management and bookkeeping</p>
         </div>
         <div className="btn-group">
-          <button className="btn btn-outline-primary">
-            <i className="fas fa-file-excel me-2"></i>Export
+          <button
+            className="btn btn-success hover-lift"
+            onClick={handleExportExcel}
+            title="Export to Excel"
+          >
+            <i className="fas fa-file-excel me-2"></i>Export Excel
+          </button>
+          <button
+            className="btn btn-danger hover-lift"
+            onClick={handleExportPDF}
+            title="Export to PDF"
+          >
+            <i className="fas fa-file-pdf me-2"></i>Export PDF
           </button>
         </div>
       </div>

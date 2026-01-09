@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { formatRoleName } from '../utils/permissions';
+import { exportToPDF, exportToExcel, formatDate, formatDateTime } from '../utils/exportUtils';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -344,6 +345,36 @@ const Users = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'name', header: 'Name' },
+      { key: 'username', header: 'Username' },
+      { key: 'email', header: 'Email' },
+      { key: 'role', header: 'Role', format: (value) => formatRoleName(value) },
+      { key: 'phone', header: 'Phone' },
+      { key: 'branch', header: 'Branch', format: (value) => value?.name || '-' },
+      { key: 'is_active', header: 'Status', format: (value) => value ? 'Active' : 'Inactive' },
+      { key: 'createdAt', header: 'Created At', format: formatDateTime }
+    ];
+    exportToPDF(users, columns, 'Users Report', 'users_report');
+    toast.success('Users exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'name', header: 'Name' },
+      { key: 'username', header: 'Username' },
+      { key: 'email', header: 'Email' },
+      { key: 'role', header: 'Role', format: (value) => formatRoleName(value) },
+      { key: 'phone', header: 'Phone' },
+      { key: 'branch', header: 'Branch', format: (value) => value?.name || '-' },
+      { key: 'is_active', header: 'Status', format: (value) => value ? 'Active' : 'Inactive' },
+      { key: 'createdAt', header: 'Created At', format: formatDateTime }
+    ];
+    exportToExcel(users, columns, 'Users', 'users_report');
+    toast.success('Users exported to Excel successfully!');
+  };
+
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -351,12 +382,30 @@ const Users = () => {
           <h1 className="h3 mb-1">User Management</h1>
           <p className="text-muted">Manage system users and permissions</p>
         </div>
-        <button 
-          className="btn btn-primary hover-lift"
-          onClick={() => setShowModal(true)}
-        >
-          <i className="fas fa-plus me-2"></i>Add User
-        </button>
+        <div className="d-flex gap-2">
+          <div className="btn-group">
+            <button
+              className="btn btn-success hover-lift"
+              onClick={handleExportExcel}
+              title="Export to Excel"
+            >
+              <i className="fas fa-file-excel me-2"></i>Export Excel
+            </button>
+            <button
+              className="btn btn-danger hover-lift"
+              onClick={handleExportPDF}
+              title="Export to PDF"
+            >
+              <i className="fas fa-file-pdf me-2"></i>Export PDF
+            </button>
+          </div>
+          <button 
+            className="btn btn-primary hover-lift"
+            onClick={() => setShowModal(true)}
+          >
+            <i className="fas fa-plus me-2"></i>Add User
+          </button>
+        </div>
       </div>
 
       <div className="card">

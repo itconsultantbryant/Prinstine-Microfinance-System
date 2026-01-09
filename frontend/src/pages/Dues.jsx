@@ -3,6 +3,7 @@ import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import Receipt from '../components/Receipt';
+import { exportToPDF, exportToExcel, formatDate, formatCurrency } from '../utils/exportUtils';
 
 const Dues = () => {
   const { user } = useAuth();
@@ -118,6 +119,38 @@ const Dues = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'client_number', header: 'Client Number' },
+      { key: 'first_name', header: 'First Name' },
+      { key: 'last_name', header: 'Last Name' },
+      { key: 'email', header: 'Email' },
+      { key: 'phone', header: 'Phone' },
+      { key: 'total_dues', header: 'Total Dues', format: (value, row) => formatCurrency(Math.abs(value || 0), row.dues_currency || 'USD') },
+      { key: 'dues_currency', header: 'Currency' },
+      { key: 'status', header: 'Status' },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToPDF(clients.filter(c => (c.total_dues || 0) > 0), columns, 'Client Dues Report', 'dues_report');
+    toast.success('Dues exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'client_number', header: 'Client Number' },
+      { key: 'first_name', header: 'First Name' },
+      { key: 'last_name', header: 'Last Name' },
+      { key: 'email', header: 'Email' },
+      { key: 'phone', header: 'Phone' },
+      { key: 'total_dues', header: 'Total Dues', format: (value, row) => formatCurrency(Math.abs(value || 0), row.dues_currency || 'USD') },
+      { key: 'dues_currency', header: 'Currency' },
+      { key: 'status', header: 'Status' },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToExcel(clients.filter(c => (c.total_dues || 0) > 0), columns, 'Client Dues', 'dues_report');
+    toast.success('Dues exported to Excel successfully!');
+  };
+
   const fetchDuesHistory = async (clientId) => {
     try {
       const response = await apiClient.get('/api/transactions', { 
@@ -191,6 +224,22 @@ const Dues = () => {
         <div>
           <h1 className="h3 mb-1">Client Dues Management</h1>
           <p className="text-muted">View and manage client annual dues payments</p>
+        </div>
+        <div className="btn-group">
+          <button
+            className="btn btn-success hover-lift"
+            onClick={handleExportExcel}
+            title="Export to Excel"
+          >
+            <i className="fas fa-file-excel me-2"></i>Export Excel
+          </button>
+          <button
+            className="btn btn-danger hover-lift"
+            onClick={handleExportPDF}
+            title="Export to PDF"
+          >
+            <i className="fas fa-file-pdf me-2"></i>Export PDF
+          </button>
         </div>
       </div>
 

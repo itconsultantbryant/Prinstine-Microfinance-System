@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../config/axios';
 import { Bar, Line, Pie } from 'react-chartjs-2';
+import { exportToPDF, exportToExcel, formatCurrency } from '../utils/exportUtils';
+import { toast } from 'react-toastify';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -427,22 +429,182 @@ const Reports = () => {
     datasets: []
   };
 
+  const handleExportPDF = () => {
+    if (!financialSummary || (!financialSummary.lrd && !financialSummary.usd)) {
+      toast.error('No data available to export');
+      return;
+    }
+
+    const lrd = financialSummary.lrd || {};
+    const usd = financialSummary.usd || {};
+
+    const exportData = [
+      {
+        'Metric': 'Total Savings (LRD)',
+        'Amount': formatCurrency(lrd.totalSavings || 0, 'LRD')
+      },
+      {
+        'Metric': 'Total Savings (USD)',
+        'Amount': formatCurrency(usd.totalSavings || 0, 'USD')
+      },
+      {
+        'Metric': 'Personal Interest (LRD)',
+        'Amount': formatCurrency(lrd.totalPersonalInterest || 0, 'LRD')
+      },
+      {
+        'Metric': 'Personal Interest (USD)',
+        'Amount': formatCurrency(usd.totalPersonalInterest || 0, 'USD')
+      },
+      {
+        'Metric': 'General Interest (LRD)',
+        'Amount': formatCurrency(lrd.totalGeneralInterest || 0, 'LRD')
+      },
+      {
+        'Metric': 'General Interest (USD)',
+        'Amount': formatCurrency(usd.totalGeneralInterest || 0, 'USD')
+      },
+      {
+        'Metric': 'Outstanding Dues (LRD)',
+        'Amount': formatCurrency(lrd.outstandingDues || 0, 'LRD')
+      },
+      {
+        'Metric': 'Outstanding Dues (USD)',
+        'Amount': formatCurrency(usd.outstandingDues || 0, 'USD')
+      },
+      {
+        'Metric': 'Outstanding Loans (LRD)',
+        'Amount': formatCurrency(lrd.outstandingLoans || 0, 'LRD')
+      },
+      {
+        'Metric': 'Outstanding Loans (USD)',
+        'Amount': formatCurrency(usd.outstandingLoans || 0, 'USD')
+      },
+      {
+        'Metric': 'Total Fines (LRD)',
+        'Amount': formatCurrency(lrd.totalFines || 0, 'LRD')
+      },
+      {
+        'Metric': 'Total Fines (USD)',
+        'Amount': formatCurrency(usd.totalFines || 0, 'USD')
+      },
+      {
+        'Metric': 'Grand Total (LRD)',
+        'Amount': formatCurrency(lrd.grandTotal || 0, 'LRD')
+      },
+      {
+        'Metric': 'Grand Total (USD)',
+        'Amount': formatCurrency(usd.grandTotal || 0, 'USD')
+      }
+    ];
+
+    const columns = [
+      { key: 'Metric', header: 'Metric' },
+      { key: 'Amount', header: 'Amount' }
+    ];
+    exportToPDF(exportData, columns, 'Financial Reports Summary', 'reports_summary');
+    toast.success('Reports exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    if (!financialSummary || (!financialSummary.lrd && !financialSummary.usd)) {
+      toast.error('No data available to export');
+      return;
+    }
+
+    const lrd = financialSummary.lrd || {};
+    const usd = financialSummary.usd || {};
+
+    const exportData = [
+      {
+        'Metric': 'Total Savings (LRD)',
+        'Amount': formatCurrency(lrd.totalSavings || 0, 'LRD')
+      },
+      {
+        'Metric': 'Total Savings (USD)',
+        'Amount': formatCurrency(usd.totalSavings || 0, 'USD')
+      },
+      {
+        'Metric': 'Personal Interest (LRD)',
+        'Amount': formatCurrency(lrd.totalPersonalInterest || 0, 'LRD')
+      },
+      {
+        'Metric': 'Personal Interest (USD)',
+        'Amount': formatCurrency(usd.totalPersonalInterest || 0, 'USD')
+      },
+      {
+        'Metric': 'General Interest (LRD)',
+        'Amount': formatCurrency(lrd.totalGeneralInterest || 0, 'LRD')
+      },
+      {
+        'Metric': 'General Interest (USD)',
+        'Amount': formatCurrency(usd.totalGeneralInterest || 0, 'USD')
+      },
+      {
+        'Metric': 'Outstanding Dues (LRD)',
+        'Amount': formatCurrency(lrd.outstandingDues || 0, 'LRD')
+      },
+      {
+        'Metric': 'Outstanding Dues (USD)',
+        'Amount': formatCurrency(usd.outstandingDues || 0, 'USD')
+      },
+      {
+        'Metric': 'Outstanding Loans (LRD)',
+        'Amount': formatCurrency(lrd.outstandingLoans || 0, 'LRD')
+      },
+      {
+        'Metric': 'Outstanding Loans (USD)',
+        'Amount': formatCurrency(usd.outstandingLoans || 0, 'USD')
+      },
+      {
+        'Metric': 'Total Fines (LRD)',
+        'Amount': formatCurrency(lrd.totalFines || 0, 'LRD')
+      },
+      {
+        'Metric': 'Total Fines (USD)',
+        'Amount': formatCurrency(usd.totalFines || 0, 'USD')
+      },
+      {
+        'Metric': 'Grand Total (LRD)',
+        'Amount': formatCurrency(lrd.grandTotal || 0, 'LRD')
+      },
+      {
+        'Metric': 'Grand Total (USD)',
+        'Amount': formatCurrency(usd.grandTotal || 0, 'USD')
+      }
+    ];
+
+    const columns = [
+      { key: 'Metric', header: 'Metric' },
+      { key: 'Amount', header: 'Amount' }
+    ];
+    exportToExcel(exportData, columns, 'Financial Reports', 'reports_summary');
+    toast.success('Reports exported to Excel successfully!');
+  };
+
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h1 className="h3 mb-1">Reports & Analytics</h1>
-          <p className="text-muted">Comprehensive system reports</p>
         </div>
         <div className="btn-group">
-          <button className="btn btn-outline-primary">
+          <button
+            className="btn btn-success hover-lift"
+            onClick={handleExportExcel}
+            title="Export to Excel"
+          >
             <i className="fas fa-file-excel me-2"></i>Export Excel
           </button>
-          <button className="btn btn-outline-danger">
+          <button
+            className="btn btn-danger hover-lift"
+            onClick={handleExportPDF}
+            title="Export to PDF"
+          >
             <i className="fas fa-file-pdf me-2"></i>Export PDF
           </button>
         </div>
       </div>
+      <p className="text-muted mb-4">Comprehensive system reports</p>
 
       {/* Report Type Tabs */}
       <ul className="nav nav-tabs mb-4">

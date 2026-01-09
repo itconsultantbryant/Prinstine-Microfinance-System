@@ -3,6 +3,7 @@ import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import Receipt from '../components/Receipt';
+import { exportToPDF, exportToExcel, formatDate, formatCurrency, formatDateTime } from '../utils/exportUtils';
 
 const Transactions = () => {
   const { user } = useAuth();
@@ -234,6 +235,36 @@ const Transactions = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'transaction_number', header: 'Transaction Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'type', header: 'Type' },
+      { key: 'amount', header: 'Amount', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'currency', header: 'Currency' },
+      { key: 'description', header: 'Description' },
+      { key: 'transaction_date', header: 'Transaction Date', format: formatDate },
+      { key: 'createdAt', header: 'Created At', format: formatDateTime }
+    ];
+    exportToPDF(transactions, columns, 'Transactions Report', 'transactions_report');
+    toast.success('Transactions exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'transaction_number', header: 'Transaction Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'type', header: 'Type' },
+      { key: 'amount', header: 'Amount', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'currency', header: 'Currency' },
+      { key: 'description', header: 'Description' },
+      { key: 'transaction_date', header: 'Transaction Date', format: formatDate },
+      { key: 'createdAt', header: 'Created At', format: formatDateTime }
+    ];
+    exportToExcel(transactions, columns, 'Transactions', 'transactions_report');
+    toast.success('Transactions exported to Excel successfully!');
+  };
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
@@ -307,15 +338,29 @@ const Transactions = () => {
           <p className="text-muted">{user?.role === 'borrower' ? 'View your transaction history' : 'Manage all financial transactions'}</p>
         </div>
         <div className="d-flex gap-2">
+          <div className="btn-group">
+            <button
+              className="btn btn-success hover-lift"
+              onClick={handleExportExcel}
+              title="Export to Excel"
+            >
+              <i className="fas fa-file-excel me-2"></i>Export Excel
+            </button>
+            <button
+              className="btn btn-danger hover-lift"
+              onClick={handleExportPDF}
+              title="Export to PDF"
+            >
+              <i className="fas fa-file-pdf me-2"></i>Export PDF
+            </button>
+          </div>
           {user?.role === 'borrower' && (
-            <>
-              <button className="btn btn-outline-primary" onClick={() => window.print()}>
-                <i className="fas fa-print me-2"></i>Print All
-              </button>
-            </>
+            <button className="btn btn-outline-primary hover-lift" onClick={() => window.print()}>
+              <i className="fas fa-print me-2"></i>Print All
+            </button>
           )}
           {user?.role !== 'borrower' && (
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button className="btn btn-primary hover-lift" onClick={() => setShowModal(true)}>
               <i className="fas fa-plus me-2"></i>Add Transaction
             </button>
           )}

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getImageUrl } from '../utils/imageUtils';
+import { exportToPDF, exportToExcel, formatDate, formatCurrency } from '../utils/exportUtils';
 
 const Clients = () => {
   const { user } = useAuth();
@@ -216,6 +217,38 @@ const Clients = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'client_number', header: 'Client Number' },
+      { key: 'first_name', header: 'First Name' },
+      { key: 'last_name', header: 'Last Name' },
+      { key: 'email', header: 'Email' },
+      { key: 'phone', header: 'Phone' },
+      { key: 'city', header: 'City' },
+      { key: 'status', header: 'Status' },
+      { key: 'total_dues', header: 'Total Dues', format: (value, row) => formatCurrency(Math.abs(value || 0), row.dues_currency || 'USD') },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToPDF(clients, columns, 'Clients Report', 'clients_report');
+    toast.success('Clients exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'client_number', header: 'Client Number' },
+      { key: 'first_name', header: 'First Name' },
+      { key: 'last_name', header: 'Last Name' },
+      { key: 'email', header: 'Email' },
+      { key: 'phone', header: 'Phone' },
+      { key: 'city', header: 'City' },
+      { key: 'status', header: 'Status' },
+      { key: 'total_dues', header: 'Total Dues', format: (value, row) => formatCurrency(Math.abs(value || 0), row.dues_currency || 'USD') },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToExcel(clients, columns, 'Clients', 'clients_report');
+    toast.success('Clients exported to Excel successfully!');
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       active: 'success',
@@ -232,12 +265,30 @@ const Clients = () => {
           <h1 className="h3 mb-1">Clients</h1>
           <p className="text-muted">Manage all your clients</p>
         </div>
-        <button
-          className="btn btn-primary hover-lift"
-          onClick={() => setShowModal(true)}
-        >
-          <i className="fas fa-plus me-2"></i>Add New Client
-        </button>
+        <div className="d-flex gap-2">
+          <div className="btn-group">
+            <button
+              className="btn btn-success hover-lift"
+              onClick={handleExportExcel}
+              title="Export to Excel"
+            >
+              <i className="fas fa-file-excel me-2"></i>Export Excel
+            </button>
+            <button
+              className="btn btn-danger hover-lift"
+              onClick={handleExportPDF}
+              title="Export to PDF"
+            >
+              <i className="fas fa-file-pdf me-2"></i>Export PDF
+            </button>
+          </div>
+          <button
+            className="btn btn-primary hover-lift"
+            onClick={() => setShowModal(true)}
+          >
+            <i className="fas fa-plus me-2"></i>Add New Client
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

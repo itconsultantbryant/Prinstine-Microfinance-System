@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import Receipt from '../components/Receipt';
 import { useAuth } from '../contexts/AuthContext';
+import { exportToPDF, exportToExcel, formatDate, formatCurrency } from '../utils/exportUtils';
 
 const Savings = () => {
   const { user } = useAuth();
@@ -69,11 +70,44 @@ const Savings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate required fields
+      if (!formData.client_id || formData.client_id === '') {
+        toast.error('Please select a client');
+        return;
+      }
+
+      if (!formData.currency || formData.currency === '') {
+        toast.error('Please select a currency');
+        return;
+      }
+
+      // Prepare data for submission
+      const submitData = {
+        client_id: parseInt(formData.client_id),
+        account_type: formData.account_type || 'regular',
+        currency: formData.currency || 'USD'
+      };
+
+      // Only include initial_deposit if it has a value
+      if (formData.initial_deposit && formData.initial_deposit !== '' && parseFloat(formData.initial_deposit) > 0) {
+        submitData.initial_deposit = parseFloat(formData.initial_deposit);
+      }
+
+      // Only include interest_rate if it has a value
+      if (formData.interest_rate && formData.interest_rate !== '' && !isNaN(parseFloat(formData.interest_rate))) {
+        submitData.interest_rate = parseFloat(formData.interest_rate);
+      }
+
+      // Only include branch_id if it has a value
+      if (formData.branch_id && formData.branch_id !== '') {
+        submitData.branch_id = parseInt(formData.branch_id);
+      }
+
       if (editingAccount) {
-        await apiClient.put(`/api/savings/${editingAccount.id}`, formData);
+        await apiClient.put(`/api/savings/${editingAccount.id}`, submitData);
         toast.success('Savings account updated successfully!');
       } else {
-        await apiClient.post('/api/savings', formData);
+        await apiClient.post('/api/savings', submitData);
         toast.success('Savings account created successfully!');
       }
       setShowModal(false);
@@ -92,7 +126,13 @@ const Savings = () => {
       await fetchClients();
     } catch (error) {
       console.error('Failed to save savings account:', error);
-      toast.error(error.response?.data?.message || 'Failed to save savings account');
+      // Handle validation errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const errorMessages = error.response.data.errors.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+        toast.error(`Validation errors: ${errorMessages}`);
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save savings account');
+      }
     }
   };
 
@@ -167,6 +207,34 @@ const Savings = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'account_number', header: 'Account Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'account_type', header: 'Account Type' },
+      { key: 'balance', header: 'Balance', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'interest_rate', header: 'Interest Rate (%)' },
+      { key: 'status', header: 'Status' },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToPDF(savings, columns, 'Savings Accounts Report', 'savings_report');
+    toast.success('Savings accounts exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'account_number', header: 'Account Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'account_type', header: 'Account Type' },
+      { key: 'balance', header: 'Balance', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'interest_rate', header: 'Interest Rate (%)' },
+      { key: 'status', header: 'Status' },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToExcel(savings, columns, 'Savings Accounts', 'savings_report');
+    toast.success('Savings accounts exported to Excel successfully!');
+  };
+
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -177,9 +245,27 @@ const Savings = () => {
           </p>
         </div>
         {user?.role !== 'borrower' && (
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <i className="fas fa-plus me-2"></i>Add Savings Account
-          </button>
+          <div className="d-flex gap-2">
+            <div className="btn-group">
+              <button
+                className="btn btn-success hover-lift"
+                onClick={handleExportExcel}
+                title="Export to Excel"
+              >
+                <i className="fas fa-file-excel me-2"></i>Export Excel
+              </button>
+              <button
+                className="btn btn-danger hover-lift"
+                onClick={handleExportPDF}
+                title="Export to PDF"
+              >
+                <i className="fas fa-file-pdf me-2"></i>Export PDF
+              </button>
+            </div>
+            <button className="btn btn-primary hover-lift" onClick={() => setShowModal(true)}>
+              <i className="fas fa-plus me-2"></i>Add Savings Account
+            </button>
+          </div>
         )}
       </div>
 

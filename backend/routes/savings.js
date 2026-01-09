@@ -92,7 +92,17 @@ router.get('/:id', async (req, res) => {
 router.post('/', [
   body('client_id').isInt().withMessage('Client ID is required'),
   body('account_type').notEmpty().withMessage('Account type is required'),
-  body('initial_deposit').optional().isFloat({ min: 0 }).withMessage('Initial deposit must be a positive number')
+  body('currency').optional().isIn(['LRD', 'USD']).withMessage('Currency must be LRD or USD'),
+  body('initial_deposit').optional().custom((value) => {
+    if (value === undefined || value === null || value === '') return true;
+    const num = parseFloat(value);
+    return !isNaN(num) && num >= 0;
+  }).withMessage('Initial deposit must be a positive number'),
+  body('interest_rate').optional().custom((value) => {
+    if (value === undefined || value === null || value === '') return true;
+    const num = parseFloat(value);
+    return !isNaN(num) && num >= 0 && num <= 100;
+  }).withMessage('Interest rate must be a number between 0 and 100')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -100,9 +110,35 @@ router.post('/', [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    // Generate account number
-    const accountCount = await db.SavingsAccount.count();
-    const accountNumber = `SAV${String(accountCount + 1).padStart(8, '0')}`;
+    // Generate unique account number
+    let accountNumber;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isUnique && attempts < maxAttempts) {
+      const accountCount = await db.SavingsAccount.count({ paranoid: false }); // Include soft-deleted accounts
+      accountNumber = `SAV${String(accountCount + 1 + attempts).padStart(8, '0')}`;
+      
+      // Check if account number already exists
+      const existingAccount = await db.SavingsAccount.findOne({
+        where: { account_number: accountNumber },
+        paranoid: false
+      });
+      
+      if (!existingAccount) {
+        isUnique = true;
+      } else {
+        attempts++;
+      }
+    }
+    
+    if (!isUnique) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate unique account number. Please try again.'
+      });
+    }
 
     // Validate account_type against ENUM values
     const validAccountTypes = ['regular', 'fixed', 'joint'];
@@ -116,7 +152,7 @@ router.post('/', [
 
     // Parse interest_rate if provided
     let interestRate = 0;
-    if (req.body.interest_rate && req.body.interest_rate !== '') {
+    if (req.body.interest_rate !== undefined && req.body.interest_rate !== null && req.body.interest_rate !== '') {
       interestRate = parseFloat(req.body.interest_rate);
       if (isNaN(interestRate) || interestRate < 0 || interestRate > 100) {
         return res.status(400).json({
@@ -127,22 +163,108 @@ router.post('/', [
     }
 
     // Handle currency - default to USD if not provided or invalid
-    let currency = req.body.currency || 'USD';
-    if (!['LRD', 'USD'].includes(currency)) {
-      currency = 'USD'; // Default to USD if invalid
+    let currency = 'USD';
+    if (req.body.currency && ['LRD', 'USD'].includes(req.body.currency)) {
+      currency = req.body.currency;
+    }
+
+    // Parse initial_deposit
+    let initialDeposit = 0;
+    if (req.body.initial_deposit !== undefined && req.body.initial_deposit !== null && req.body.initial_deposit !== '') {
+      initialDeposit = parseFloat(req.body.initial_deposit);
+      if (isNaN(initialDeposit) || initialDeposit < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Initial deposit must be a positive number'
+        });
+      }
+    }
+
+    // Handle branch_id
+    let branchId = null;
+    if (req.body.branch_id && req.body.branch_id !== '' && req.body.branch_id !== null) {
+      branchId = parseInt(req.body.branch_id);
+      if (isNaN(branchId)) {
+        branchId = req.user?.branch_id || null;
+      }
+    } else {
+      branchId = req.user?.branch_id || null;
+    }
+
+    // Verify client exists
+    const client = await db.Client.findByPk(parseInt(req.body.client_id));
+    if (!client) {
+      return res.status(400).json({
+        success: false,
+        message: 'Client not found'
+      });
     }
 
     const savingsAccount = await db.SavingsAccount.create({
       client_id: parseInt(req.body.client_id),
       account_type: accountType,
       account_number: accountNumber,
-      balance: req.body.initial_deposit ? parseFloat(req.body.initial_deposit) : 0,
+      balance: initialDeposit,
       interest_rate: interestRate,
-      branch_id: req.body.branch_id && req.body.branch_id !== '' ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
+      branch_id: branchId,
       status: 'active',
       created_by: req.userId,
       opening_date: req.body.opening_date || new Date(),
       currency: currency // Currency for the savings account (LRD or USD)
+    });
+
+    // If there's an initial deposit, create a transaction for it
+    if (initialDeposit > 0) {
+      try {
+        // Generate unique transaction number
+        let transactionNumber;
+        let isUnique = false;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (!isUnique && attempts < maxAttempts) {
+          const transactionCount = await db.Transaction.count({ paranoid: false });
+          transactionNumber = `TXN${String(transactionCount + 1 + attempts).padStart(8, '0')}`;
+          
+          const existingTransaction = await db.Transaction.findOne({
+            where: { transaction_number: transactionNumber },
+            paranoid: false
+          });
+          
+          if (!existingTransaction) {
+            isUnique = true;
+          } else {
+            attempts++;
+          }
+        }
+        
+        if (isUnique) {
+          await db.Transaction.create({
+            transaction_number: transactionNumber,
+            client_id: savingsAccount.client_id,
+            savings_account_id: savingsAccount.id,
+            type: 'deposit',
+            amount: initialDeposit,
+            currency: currency,
+            description: `Initial deposit for ${accountNumber}`,
+            transaction_date: savingsAccount.opening_date || new Date(),
+            status: 'completed',
+            branch_id: branchId,
+            created_by: req.userId
+          });
+        }
+      } catch (transactionError) {
+        // Log error but don't fail account creation
+        console.error('Failed to create initial deposit transaction:', transactionError);
+      }
+    }
+
+    // Reload savings account with relations
+    await savingsAccount.reload({
+      include: [
+        { model: db.Client, as: 'client', required: false },
+        { model: db.Branch, as: 'branch', required: false }
+      ]
     });
 
     res.status(201).json({
@@ -218,11 +340,42 @@ router.post('/:id/deposit', [
     }
 
     const depositAmount = parseFloat(req.body.amount);
+    if (isNaN(depositAmount) || depositAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Deposit amount must be a positive number'
+      });
+    }
     const newBalance = parseFloat(savingsAccount.balance || 0) + depositAmount;
 
-    // Create transaction
-    const transactionCount = await db.Transaction.count();
-    const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
+    // Create transaction with unique transaction number
+    let transactionNumber;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isUnique && attempts < maxAttempts) {
+      const transactionCount = await db.Transaction.count({ paranoid: false });
+      transactionNumber = `TXN${String(transactionCount + 1 + attempts).padStart(8, '0')}`;
+      
+      const existingTransaction = await db.Transaction.findOne({
+        where: { transaction_number: transactionNumber },
+        paranoid: false
+      });
+      
+      if (!existingTransaction) {
+        isUnique = true;
+      } else {
+        attempts++;
+      }
+    }
+    
+    if (!isUnique) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate unique transaction number. Please try again.'
+      });
+    }
 
     const transaction = await db.Transaction.create({
       transaction_number: transactionNumber,
@@ -230,6 +383,7 @@ router.post('/:id/deposit', [
       savings_account_id: savingsAccount.id,
       type: 'deposit',
       amount: depositAmount,
+      currency: savingsAccount.currency || 'USD', // Include currency from savings account
       description: req.body.description || `Deposit to ${savingsAccount.account_number}`,
       transaction_date: new Date(),
       status: 'completed',
@@ -311,20 +465,53 @@ router.post('/:id/withdraw', [
     }
 
     const withdrawalAmount = parseFloat(req.body.amount);
+    if (isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Withdrawal amount must be a positive number'
+      });
+    }
+    
     const currentBalance = parseFloat(savingsAccount.balance || 0);
 
     if (withdrawalAmount > currentBalance) {
+      const currencySymbol = savingsAccount.currency === 'LRD' ? 'LRD' : '$';
       return res.status(400).json({
         success: false,
-        message: 'Insufficient balance'
+        message: `Insufficient balance. Current balance: ${currencySymbol}${currentBalance.toFixed(2)}`
       });
     }
 
     const newBalance = currentBalance - withdrawalAmount;
 
-    // Create transaction
-    const transactionCount = await db.Transaction.count();
-    const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
+    // Create transaction with unique transaction number
+    let transactionNumber;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isUnique && attempts < maxAttempts) {
+      const transactionCount = await db.Transaction.count({ paranoid: false });
+      transactionNumber = `TXN${String(transactionCount + 1 + attempts).padStart(8, '0')}`;
+      
+      const existingTransaction = await db.Transaction.findOne({
+        where: { transaction_number: transactionNumber },
+        paranoid: false
+      });
+      
+      if (!existingTransaction) {
+        isUnique = true;
+      } else {
+        attempts++;
+      }
+    }
+    
+    if (!isUnique) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate unique transaction number. Please try again.'
+      });
+    }
 
     const transaction = await db.Transaction.create({
       transaction_number: transactionNumber,
@@ -332,6 +519,7 @@ router.post('/:id/withdraw', [
       savings_account_id: savingsAccount.id,
       type: 'withdrawal',
       amount: withdrawalAmount,
+      currency: savingsAccount.currency || 'USD', // Include currency from savings account
       description: req.body.description || `Withdrawal from ${savingsAccount.account_number}`,
       transaction_date: new Date(),
       status: 'completed',
@@ -386,7 +574,8 @@ router.post('/:id/withdraw', [
 // Update savings account
 router.put('/:id', [
   body('account_type').optional().notEmpty(),
-  body('interest_rate').optional().isFloat({ min: 0, max: 100 })
+  body('interest_rate').optional().isFloat({ min: 0, max: 100 }),
+  body('currency').optional().isIn(['LRD', 'USD'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -402,7 +591,45 @@ router.put('/:id', [
       });
     }
 
-    await savingsAccount.update(req.body);
+    // Prepare update data
+    const updateData = {};
+
+    // Only update fields that are provided
+    if (req.body.account_type) {
+      const validAccountTypes = ['regular', 'fixed', 'joint'];
+      if (validAccountTypes.includes(req.body.account_type)) {
+        updateData.account_type = req.body.account_type;
+      }
+    }
+
+    if (req.body.interest_rate !== undefined && req.body.interest_rate !== null && req.body.interest_rate !== '') {
+      const interestRate = parseFloat(req.body.interest_rate);
+      if (!isNaN(interestRate) && interestRate >= 0 && interestRate <= 100) {
+        updateData.interest_rate = interestRate;
+      }
+    }
+
+    if (req.body.currency && ['LRD', 'USD'].includes(req.body.currency)) {
+      updateData.currency = req.body.currency;
+    }
+
+    if (req.body.branch_id !== undefined && req.body.branch_id !== null && req.body.branch_id !== '') {
+      const branchId = parseInt(req.body.branch_id);
+      if (!isNaN(branchId)) {
+        updateData.branch_id = branchId;
+      } else {
+        updateData.branch_id = null;
+      }
+    }
+
+    if (req.body.status && ['active', 'inactive', 'closed', 'pending'].includes(req.body.status)) {
+      updateData.status = req.body.status;
+    }
+
+    await savingsAccount.update(updateData);
+
+    // Reload to get updated data
+    await savingsAccount.reload();
 
     res.json({
       success: true,
@@ -411,6 +638,18 @@ router.put('/:id', [
     });
   } catch (error) {
     console.error('Update savings account error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', req.body);
+    
+    // Handle specific database errors
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map(e => ({ param: e.path, msg: e.message }))
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Failed to update savings account',

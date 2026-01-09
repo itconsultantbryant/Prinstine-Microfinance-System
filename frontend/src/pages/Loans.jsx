@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Receipt from '../components/Receipt';
+import { exportToPDF, exportToExcel, formatDate, formatCurrency } from '../utils/exportUtils';
 
 const Loans = () => {
   const { user } = useAuth();
@@ -433,6 +434,40 @@ const Loans = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    const columns = [
+      { key: 'loan_number', header: 'Loan Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'loan_type', header: 'Loan Type' },
+      { key: 'amount', header: 'Amount', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'interest_rate', header: 'Interest Rate (%)' },
+      { key: 'term_months', header: 'Term (Months)' },
+      { key: 'outstanding_balance', header: 'Outstanding Balance', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'status', header: 'Status' },
+      { key: 'disbursement_date', header: 'Disbursement Date', format: formatDate },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToPDF(loans, columns, 'Loans Report', 'loans_report');
+    toast.success('Loans exported to PDF successfully!');
+  };
+
+  const handleExportExcel = () => {
+    const columns = [
+      { key: 'loan_number', header: 'Loan Number' },
+      { key: 'client', header: 'Client', format: (value) => value ? `${value.first_name} ${value.last_name}` : '-' },
+      { key: 'loan_type', header: 'Loan Type' },
+      { key: 'amount', header: 'Amount', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'interest_rate', header: 'Interest Rate (%)' },
+      { key: 'term_months', header: 'Term (Months)' },
+      { key: 'outstanding_balance', header: 'Outstanding Balance', format: (value, row) => formatCurrency(value, row.currency || 'USD') },
+      { key: 'status', header: 'Status' },
+      { key: 'disbursement_date', header: 'Disbursement Date', format: formatDate },
+      { key: 'createdAt', header: 'Created At', format: formatDate }
+    ];
+    exportToExcel(loans, columns, 'Loans', 'loans_report');
+    toast.success('Loans exported to Excel successfully!');
+  };
+
   const handleRepay = async (e) => {
     e.preventDefault();
     try {
@@ -605,6 +640,39 @@ const Loans = () => {
   return (
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'My Loans' : 'Loans'}</h1>
+          <p className="text-muted">
+            {user?.role === 'borrower' ? 'View your loan applications and status' : 'Manage all loan applications and disbursements'}
+          </p>
+        </div>
+        {user?.role !== 'borrower' && (
+          <div className="d-flex gap-2">
+            <div className="btn-group">
+              <button
+                className="btn btn-success hover-lift"
+                onClick={handleExportExcel}
+                title="Export to Excel"
+              >
+                <i className="fas fa-file-excel me-2"></i>Export Excel
+              </button>
+              <button
+                className="btn btn-danger hover-lift"
+                onClick={handleExportPDF}
+                title="Export to PDF"
+              >
+                <i className="fas fa-file-pdf me-2"></i>Export PDF
+              </button>
+            </div>
+            <button
+              className="btn btn-primary hover-lift"
+              onClick={() => setShowModal(true)}
+            >
+              <i className="fas fa-plus me-2"></i>New Loan Application
+            </button>
+          </div>
+        )}
+      </div>
         <div>
           <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'My Loans' : 'Loans'}</h1>
           <p className="text-muted">
