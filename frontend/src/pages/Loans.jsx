@@ -285,15 +285,24 @@ const Loans = () => {
       // Log the data being sent for debugging
       console.log('Submitting loan data:', submitData);
 
-      const response = await apiClient.post('/api/loans', submitData);
-      toast.success('Loan created successfully!');
-      
-      // Show success with schedule info
-      if (response.data.data.schedule_summary) {
-        toast.info(`Monthly Payment: $${response.data.data.schedule_summary.monthly_payment.toFixed(2)}`);
+      let response;
+      if (editingLoan) {
+        // Update existing loan
+        response = await apiClient.put(`/api/loans/${editingLoan.id}`, submitData);
+        toast.success('Loan updated successfully!');
+      } else {
+        // Create new loan
+        response = await apiClient.post('/api/loans', submitData);
+        toast.success('Loan created successfully!');
+        
+        // Show success with schedule info
+        if (response.data.data.schedule_summary) {
+          toast.info(`Monthly Payment: $${response.data.data.schedule_summary.monthly_payment.toFixed(2)}`);
+        }
       }
       
       setShowModal(false);
+      setEditingLoan(null);
       const defaultLoanType = 'personal';
       const defaultConfig = loanTypes[defaultLoanType] || {};
       
@@ -375,6 +384,52 @@ const Loans = () => {
       fetchLoans();
     } catch (error) {
       toast.error('Failed to disburse loan');
+    }
+  };
+
+  const handleEdit = async (loanId) => {
+    try {
+      const response = await apiClient.get(`/api/loans/${loanId}`);
+      const loan = response.data.data.loan;
+      setEditingLoan(loan);
+      setFormData({
+        client_id: loan.client_id || '',
+        amount: loan.amount || '',
+        currency: loan.currency || 'USD',
+        interest_rate: loan.interest_rate || '',
+        upfront_percentage: loan.upfront_percentage || 0,
+        upfront_amount: loan.upfront_amount || 0,
+        default_charges_percentage: loan.default_charges_percentage || 0,
+        default_charges_amount: loan.default_charges_amount || 0,
+        term_months: loan.term_months || '',
+        loan_type: loan.loan_type || 'personal',
+        payment_frequency: loan.payment_frequency || 'monthly',
+        interest_method: loan.interest_method || 'declining_balance',
+        loan_purpose: loan.loan_purpose || '',
+        collateral_id: loan.collateral_id || '',
+        disbursement_date: loan.disbursement_date || loan.application_date || new Date().toISOString().split('T')[0],
+        branch_id: loan.branch_id || '',
+        notes: loan.notes || ''
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Failed to fetch loan details:', error);
+      toast.error('Failed to load loan details');
+    }
+  };
+
+  const handleDelete = async (loanId) => {
+    if (!window.confirm('Are you sure you want to delete this loan? It will be moved to the Recycle Bin.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/loans/${loanId}`);
+      toast.success('Loan deleted successfully');
+      fetchLoans();
+    } catch (error) {
+      console.error('Failed to delete loan:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete loan');
     }
   };
 
@@ -656,11 +711,20 @@ const Loans = () => {
                           <div className="btn-group">
                             <Link
                               to={`/loans/${loan.id}`}
-                              className="btn btn-sm btn-outline-primary"
+                              className="btn btn-sm btn-outline-info"
                               title="View Details"
                             >
                               <i className="fas fa-eye"></i>
                             </Link>
+                            {user?.role !== 'borrower' && user?.role === 'admin' && (
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => handleEdit(loan.id)}
+                                title="Edit"
+                              >
+                                <i className="fas fa-edit"></i>
+                              </button>
+                            )}
                             {user?.role !== 'borrower' && loan.status === 'pending' && (
                               <button
                                 className="btn btn-sm btn-outline-success"
@@ -700,6 +764,15 @@ const Loans = () => {
                                 </button>
                               </>
                             )}
+                            {user?.role === 'admin' && (
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => handleDelete(loan.id)}
+                                title="Delete"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -726,13 +799,14 @@ const Loans = () => {
             <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
               <div className="modal-content" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
                 <div className="modal-header" style={{ flexShrink: 0 }}>
-                  <h5 className="modal-title">New Loan Application</h5>
+                  <h5 className="modal-title">{editingLoan ? 'Edit Loan' : 'New Loan Application'}</h5>
                   <button
                     type="button"
                     className="btn-close"
                     onClick={() => {
                       setShowModal(false);
                       setSchedulePreview(null);
+                      setEditingLoan(null);
                     }}
                     aria-label="Close"
                   ></button>
@@ -1087,7 +1161,7 @@ const Loans = () => {
                       Cancel
                     </button>
                     <button type="submit" className="btn btn-primary">
-                      <i className="fas fa-save me-2"></i>Create Loan Application
+                      <i className="fas fa-save me-2"></i>{editingLoan ? 'Update Loan' : 'Create Loan Application'}
                     </button>
                   </div>
                 </form>

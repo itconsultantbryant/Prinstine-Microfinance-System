@@ -68,9 +68,16 @@ const Savings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post('/api/savings', formData);
-      toast.success('Savings account created successfully!');
+      if (editingAccount) {
+        await apiClient.put(`/api/savings/${editingAccount.id}`, formData);
+        toast.success('Savings account updated successfully!');
+      } else {
+        await apiClient.post('/api/savings', formData);
+        toast.success('Savings account created successfully!');
+      }
       setShowModal(false);
+      setEditingAccount(null);
+      setSelectedAccount(null);
       setFormData({
         client_id: '',
         account_type: 'regular',
@@ -81,8 +88,8 @@ const Savings = () => {
       });
       fetchSavings();
     } catch (error) {
-      console.error('Failed to create savings account:', error);
-      toast.error(error.response?.data?.message || 'Failed to create savings account');
+      console.error('Failed to save savings account:', error);
+      toast.error(error.response?.data?.message || 'Failed to save savings account');
     }
   };
 
@@ -113,6 +120,41 @@ const Savings = () => {
     } catch (error) {
       console.error('Failed to process withdrawal:', error);
       toast.error(error.response?.data?.message || 'Failed to process withdrawal');
+    }
+  };
+
+  const handleEdit = async (accountId) => {
+    try {
+      const response = await apiClient.get(`/api/savings/${accountId}`);
+      const account = response.data.data.savingsAccount;
+      setEditingAccount(account);
+      setFormData({
+        client_id: account.client_id || '',
+        account_type: account.account_type || 'regular',
+        initial_deposit: account.balance || '',
+        interest_rate: account.interest_rate || '',
+        currency: account.currency || 'USD',
+        branch_id: account.branch_id || ''
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Failed to fetch savings account details:', error);
+      toast.error('Failed to load savings account details');
+    }
+  };
+
+  const handleDelete = async (accountId) => {
+    if (!window.confirm('Are you sure you want to delete this savings account? It will be moved to the Recycle Bin.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/savings/${accountId}`);
+      toast.success('Savings account deleted successfully');
+      fetchSavings();
+    } catch (error) {
+      console.error('Failed to delete savings account:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete savings account');
     }
   };
 
@@ -174,8 +216,22 @@ const Savings = () => {
                         </td>
                         <td>
                           <div className="btn-group">
+                            <Link
+                              to={`/savings/${account.id}`}
+                              className="btn btn-sm btn-outline-info"
+                              title="View Details"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </Link>
                             {user?.role !== 'borrower' && (
                               <>
+                                <button 
+                                  className="btn btn-sm btn-outline-primary"
+                                  onClick={() => handleEdit(account.id)}
+                                  title="Edit"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
                                 <button 
                                   className="btn btn-sm btn-outline-success"
                                   onClick={() => {
@@ -197,15 +253,17 @@ const Savings = () => {
                                 >
                                   <i className="fas fa-minus"></i>
                                 </button>
+                                {user?.role === 'admin' && (
+                                  <button 
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() => handleDelete(account.id)}
+                                    title="Delete"
+                                  >
+                                    <i className="fas fa-trash"></i>
+                                  </button>
+                                )}
                               </>
                             )}
-                            <Link
-                              to={`/savings/${account.id}`}
-                              className="btn btn-sm btn-outline-primary"
-                              title="View Details"
-                            >
-                              <i className="fas fa-eye"></i>
-                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -231,7 +289,7 @@ const Savings = () => {
             <div className="modal-dialog modal-lg modal-dialog-scrollable" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
               <div className="modal-content" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
                 <div className="modal-header" style={{ flexShrink: 0 }}>
-                  <h5 className="modal-title">Add Savings Account</h5>
+                  <h5 className="modal-title">{editingAccount ? 'Edit Savings Account' : 'Add Savings Account'}</h5>
                   <button type="button" className="btn-close" onClick={() => setShowModal(false)} aria-label="Close"></button>
                 </div>
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
