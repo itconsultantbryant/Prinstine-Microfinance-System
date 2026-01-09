@@ -22,35 +22,7 @@ const Transactions = () => {
     transaction_date: new Date().toISOString().split('T')[0]
   });
 
-  useEffect(() => {
-    fetchTransactions();
-    fetchClients();
-    fetchLoans();
-    fetchSavingsAccounts();
-    
-    // Real-time updates every 5 seconds
-    const interval = setInterval(() => {
-      fetchTransactions();
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-set currency when loan or client is selected
-  useEffect(() => {
-    if (formData.loan_id) {
-      const selectedLoan = loans.find(l => l.id === parseInt(formData.loan_id));
-      if (selectedLoan && selectedLoan.currency) {
-        setFormData(prev => ({ ...prev, currency: selectedLoan.currency }));
-      }
-    } else if (formData.client_id && formData.type === 'due_payment') {
-      const selectedClient = clients.find(c => c.id === parseInt(formData.client_id));
-      if (selectedClient && selectedClient.dues_currency) {
-        setFormData(prev => ({ ...prev, currency: selectedClient.dues_currency }));
-      }
-    }
-  }, [formData.loan_id, formData.client_id, formData.type, loans, clients]);
-
+  // Define all fetch functions before useEffect hooks
   const fetchTransactions = async () => {
     try {
       const response = await apiClient.get('/api/transactions');
@@ -89,6 +61,35 @@ const Transactions = () => {
       console.error('Failed to fetch savings accounts:', error);
     }
   };
+
+  useEffect(() => {
+    fetchTransactions();
+    fetchClients();
+    fetchLoans();
+    fetchSavingsAccounts();
+    
+    // Real-time updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchTransactions();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-set currency when loan or client is selected
+  useEffect(() => {
+    if (formData.loan_id) {
+      const selectedLoan = loans.find(l => l.id === parseInt(formData.loan_id));
+      if (selectedLoan && selectedLoan.currency) {
+        setFormData(prev => ({ ...prev, currency: selectedLoan.currency }));
+      }
+    } else if (formData.client_id && formData.type === 'due_payment') {
+      const selectedClient = clients.find(c => c.id === parseInt(formData.client_id));
+      if (selectedClient && selectedClient.dues_currency) {
+        setFormData(prev => ({ ...prev, currency: selectedClient.dues_currency }));
+      }
+    }
+  }, [formData.loan_id, formData.client_id, formData.type, loans, clients]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
