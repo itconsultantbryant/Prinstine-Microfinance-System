@@ -520,7 +520,44 @@ router.post('/', authenticate, [
       statusCode = 400;
       errorDetails.validationErrors = error.errors;
     } else if (error.name === 'SequelizeUniqueConstraintError') {
-      errorMessage = 'A loan with this number already exists. Please try again.';
+      // If duplicate loan number error, try to generate a new one and retry once
+      if (error.message && error.message.includes('loan_number')) {
+        console.log('Duplicate loan number detected, attempting to generate new number...');
+        try {
+          // Regenerate loan number
+          const lastLoan = await db.Loan.findOne({
+            order: [['id', 'DESC']],
+            attributes: ['loan_number'],
+            paranoid: false
+          });
+          
+          let sequenceNumber = 1;
+          if (lastLoan && lastLoan.loan_number) {
+            const lastNumber = parseInt(lastLoan.loan_number.replace('LN', '')) || 0;
+            sequenceNumber = lastNumber + 1;
+          }
+          
+          let newLoanNumber;
+          let attempts = 0;
+          do {
+            newLoanNumber = `LN${String(sequenceNumber).padStart(6, '0')}`;
+            const existingLoan = await db.Loan.findOne({ 
+              where: { loan_number: newLoanNumber },
+              paranoid: false
+            });
+            if (!existingLoan) break;
+            sequenceNumber++;
+            attempts++;
+          } while (attempts < 100);
+          
+          errorMessage = `A loan with this number already exists. Please try again with loan number: ${newLoanNumber}, or contact support to resolve duplicate loan numbers.`;
+        } catch (retryError) {
+          errorMessage = 'A loan with this number already exists. The system is attempting to resolve this automatically. Please try again in a moment or contact support.';
+          console.error('Error while resolving duplicate loan number:', retryError);
+        }
+      } else {
+        errorMessage = 'A duplicate record was detected. Please try again or contact support.';
+      }
       statusCode = 400;
     } else if (error.name === 'SequelizeForeignKeyConstraintError') {
       errorMessage = 'Invalid reference (client, branch, or collateral not found). Please check your selections.';
@@ -1186,6 +1223,9 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
       });
     }
 
+    // Also delete associated repayments
+    await db.LoanRepayment.destroy({ where: { loan_id: loan.id } });
+    
     await loan.destroy(); // Soft delete with paranoid
 
     res.json({
@@ -1197,6 +1237,101 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete loan',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Delete loan by loan number (for fixing duplicates - must be before /:id route)
+router.delete('/by-number/:loanNumber', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { loanNumber } = req.params;
+    
+    const loan = await db.Loan.findOne({ 
+      where: { loan_number: loanNumber },
+      paranoid: false // Include soft-deleted
+    });
+    
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: `Loan with number ${loanNumber} not found`
+      });
+    }
+
+    // Also delete associated repayments
+    await db.LoanRepayment.destroy({ where: { loan_id: loan.id } });
+    
+    // Force delete if already soft-deleted, otherwise soft delete
+    const wasDeleted = loan.deleted_at !== null;
+    await loan.destroy({ force: wasDeleted });
+
+    res.json({
+      success: true,
+      message: `Loan ${loanNumber} deleted successfully`,
+      data: { loan_number: loanNumber, loan_id: loan.id, was_permanently_deleted: wasDeleted }
+    });
+  } catch (error) {
+    console.error('Delete loan by number error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete loan',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Check for duplicate loan numbers (admin utility)
+router.get('/duplicates/check', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    // Find all loans grouped by loan_number
+    const allLoans = await db.Loan.findAll({
+      attributes: ['id', 'loan_number', 'client_id', 'amount', 'status', 'created_at'],
+      order: [['created_at', 'DESC']],
+      paranoid: false // Include soft-deleted
+    });
+    
+    // Group by loan_number to find duplicates
+    const loanNumberMap = {};
+    allLoans.forEach(loan => {
+      if (!loanNumberMap[loan.loan_number]) {
+        loanNumberMap[loan.loan_number] = [];
+      }
+      loanNumberMap[loan.loan_number].push({
+        id: loan.id,
+        client_id: loan.client_id,
+        amount: loan.amount,
+        status: loan.status,
+        created_at: loan.created_at,
+        deleted_at: loan.deleted_at
+      });
+    });
+    
+    // Find duplicates
+    const duplicates = [];
+    Object.keys(loanNumberMap).forEach(loanNumber => {
+      if (loanNumberMap[loanNumber].length > 1) {
+        duplicates.push({
+          loan_number: loanNumber,
+          count: loanNumberMap[loanNumber].length,
+          loans: loanNumberMap[loanNumber]
+        });
+      }
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        duplicates,
+        duplicate_count: duplicates.length,
+        total_duplicate_loans: duplicates.reduce((sum, dup) => sum + dup.count - 1, 0)
+      }
+    });
+  } catch (error) {
+    console.error('Check duplicates error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check for duplicate loans',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
