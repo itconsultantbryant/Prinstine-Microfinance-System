@@ -245,9 +245,11 @@ router.put('/:id', [
 
 // Delete user (soft delete - admin only)
 router.delete('/:id', authorize('admin'), async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const user = await db.User.findByPk(req.params.id);
+    const user = await db.User.findByPk(req.params.id, { transaction });
     if (!user) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -256,45 +258,35 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
 
     // Prevent deleting yourself
     if (parseInt(req.params.id) === req.userId) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: 'You cannot delete your own account'
       });
     }
 
-    // Delete user - set is_active to false (User model doesn't have paranoid mode)
-    // Also check if user has associated client and handle accordingly
-    try {
-      // Check if user has associated client
-      const associatedClient = await db.Client.findOne({ where: { user_id: user.id } });
-      
-      if (associatedClient) {
-        // Soft delete the associated client first
-        await associatedClient.destroy();
-      }
-      
-      // Deactivate user account
-      await user.update({ is_active: false });
-      
-      // Optionally, we can also delete the user record permanently
-      // Uncomment the line below if you want permanent deletion instead of soft delete
-      // await user.destroy({ force: true });
-    } catch (deleteError) {
-      console.error('Error during user deletion:', deleteError);
-      // Try to at least deactivate the user
-      try {
-        await user.update({ is_active: false });
-      } catch (updateError) {
-        console.error('Error deactivating user:', updateError);
-        throw updateError;
-      }
+    // Check if user has associated client and handle accordingly
+    const associatedClient = await db.Client.findOne({ 
+      where: { user_id: user.id },
+      transaction
+    });
+    
+    if (associatedClient) {
+      // Soft delete the associated client first
+      await associatedClient.destroy({ transaction });
     }
+    
+    // Soft delete user (with paranoid mode)
+    await user.destroy({ transaction });
+
+    await transaction.commit();
 
     res.json({
       success: true,
       message: 'User deleted successfully'
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Delete user error:', error);
     res.status(500).json({
       success: false,

@@ -202,14 +202,16 @@ const Clients = () => {
   };
 
   const handleDelete = async (clientId) => {
-    if (!window.confirm('Are you sure you want to delete this client? This action can be undone from the recycle bin.')) {
+    if (!window.confirm('Are you sure you want to delete this client? This will delete all their financial records. This action can be undone from the recycle bin.')) {
       return;
     }
     try {
       await apiClient.delete(`/api/clients/${clientId}`);
-      toast.success('Client deleted successfully');
-      fetchClients();
+      toast.success('Client and all financial records deleted successfully');
+      // Immediate refresh
+      await fetchClients();
     } catch (error) {
+      console.error('Failed to delete client:', error);
       toast.error(error.response?.data?.message || 'Failed to delete client');
     }
   };

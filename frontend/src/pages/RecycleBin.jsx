@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import moment from 'moment';
 
 const RecycleBin = () => {
+  const [deletedUsers, setDeletedUsers] = useState([]);
   const [deletedClients, setDeletedClients] = useState([]);
   const [deletedLoans, setDeletedLoans] = useState([]);
   const [deletedTransactions, setDeletedTransactions] = useState([]);
@@ -25,6 +26,7 @@ const RecycleBin = () => {
         params: { type: activeTab }
       });
       const data = response.data.data;
+      setDeletedUsers(data.users || []);
       setDeletedClients(data.clients || []);
       setDeletedLoans(data.loans || []);
       setDeletedTransactions(data.transactions || []);
@@ -53,6 +55,7 @@ const RecycleBin = () => {
       };
       await apiClient.post(`/api/recycle/${typeMap[type]}/${id}/restore`);
       const itemNames = {
+        'users': 'User',
         'clients': 'Client',
         'loans': 'Loan',
         'transactions': 'Transaction',
@@ -70,6 +73,7 @@ const RecycleBin = () => {
 
   const handlePermanentDelete = async (type, id) => {
     const itemNames = {
+      'users': 'user',
       'clients': 'client',
       'loans': 'loan',
       'transactions': 'transaction',
@@ -122,6 +126,14 @@ const RecycleBin = () => {
 
       {/* Tabs */}
       <ul className="nav nav-tabs mb-4" style={{ flexWrap: 'wrap' }}>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <i className="fas fa-user-shield me-2"></i>Users ({deletedUsers.length})
+          </button>
+        </li>
         <li className="nav-item">
           <button
             className={`nav-link ${activeTab === 'clients' ? 'active' : ''}`}
@@ -179,6 +191,63 @@ const RecycleBin = () => {
           </button>
         </li>
       </ul>
+
+      {/* Deleted Users */}
+      {activeTab === 'users' && (
+        <div className="card">
+          <div className="card-body p-0">
+            {deletedUsers.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Deleted At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td><strong>{user.name}</strong></td>
+                        <td>{user.username}</td>
+                        <td>{user.email}</td>
+                        <td>
+                          <span className="badge bg-secondary">
+                            {user.role?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        </td>
+                        <td>{moment(user.deleted_at).format('YYYY-MM-DD HH:mm')}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-success me-2"
+                            onClick={() => handleRestore('users', user.id)}
+                          >
+                            <i className="fas fa-undo me-1"></i>Restore
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handlePermanentDelete('users', user.id)}
+                          >
+                            <i className="fas fa-trash me-1"></i>Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center p-4">
+                <p className="text-muted">No deleted users found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Deleted Clients */}
       {activeTab === 'clients' && (

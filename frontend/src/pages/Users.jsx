@@ -329,18 +329,18 @@ const Users = () => {
   };
 
   const handleDelete = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) {
+    if (!window.confirm('Are you sure you want to delete this user? This will also delete their associated client if they have one. This action can be undone from the recycle bin.')) {
       return;
     }
 
     try {
-      // Note: You may need to add a DELETE route in the backend
       await apiClient.delete(`/api/users/${userId}`);
       toast.success('User deleted successfully');
-      fetchUsers();
+      // Immediate refresh
+      await fetchUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
-      toast.error('Failed to delete user');
+      toast.error(error.response?.data?.message || 'Failed to delete user');
     }
   };
 

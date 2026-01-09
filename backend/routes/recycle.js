@@ -20,6 +20,20 @@ router.get('/', async (req, res) => {
     let deletedCollaterals = [];
     let deletedKycDocs = [];
     let deletedBranches = [];
+    let deletedUsers = [];
+
+    if (!type || type === 'user') {
+      deletedUsers = await db.User.findAll({
+        where: {
+          deleted_at: { [Op.ne]: null }
+        },
+        include: [
+          { model: db.Branch, as: 'branch', required: false }
+        ],
+        order: [['deleted_at', 'DESC']],
+        paranoid: false
+      });
+    }
 
     if (!type || type === 'client') {
       deletedClients = await db.Client.findAll({
@@ -115,6 +129,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: {
+        users: deletedUsers,
         clients: deletedClients,
         loans: deletedLoans,
         transactions: deletedTransactions,
@@ -395,6 +410,26 @@ router.delete('/branches/:id', async (req, res) => {
   try {
     await permanentDeleteItem(db.Branch, req.params.id, 'branch');
     res.json({ success: true, message: 'Branch permanently deleted' });
+  } catch (error) {
+    res.status(404).json({ success: false, message: error.message });
+  }
+});
+
+// Restore user
+router.post('/users/:id/restore', async (req, res) => {
+  try {
+    const user = await restoreItem(db.User, req.params.id, 'user');
+    res.json({ success: true, message: 'User restored successfully', data: { user } });
+  } catch (error) {
+    res.status(404).json({ success: false, message: error.message });
+  }
+});
+
+// Permanent delete user
+router.delete('/users/:id', async (req, res) => {
+  try {
+    await permanentDeleteItem(db.User, req.params.id, 'user');
+    res.json({ success: true, message: 'User permanently deleted' });
   } catch (error) {
     res.status(404).json({ success: false, message: error.message });
   }
