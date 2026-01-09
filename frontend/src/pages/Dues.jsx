@@ -345,9 +345,9 @@ const Dues = () => {
                 <form onSubmit={handlePayment}>
                   <div className="modal-body">
                     <div className="alert alert-info">
-                      <strong>Outstanding Dues:</strong> ${Math.abs(parseFloat(selectedClient.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <strong>Outstanding Dues:</strong> {(selectedClient.dues_currency === 'LRD' ? 'LRD' : '$')}{Math.abs(parseFloat(selectedClient.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       <br />
-                      <strong>Monthly Dues:</strong> ${getMonthlyDues(selectedClient.total_dues).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <strong>Monthly Dues:</strong> {(selectedClient.dues_currency === 'LRD' ? 'LRD' : '$')}{getMonthlyDues(selectedClient.total_dues).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="row">
                       <div className="col-md-6 mb-3">
