@@ -467,16 +467,121 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
   }
 });
 
+// Helper function to delete all financial records for a client
+async function deleteClientFinancialRecords(clientId, transaction) {
+  // 1. Get all loans for this client
+  const loans = await db.Loan.findAll({ where: { client_id: clientId }, transaction });
+  const loanIds = loans.map(loan => loan.id);
+
+  // 2. Get all savings accounts for this client
+  const savingsAccounts = await db.SavingsAccount.findAll({ where: { client_id: clientId }, transaction });
+  const savingsIds = savingsAccounts.map(savings => savings.id);
+
+  // 3. Get all transaction IDs that need revenue deletion (before deleting transactions)
+  const transactionWhere = {
+    [db.Sequelize.Op.or]: [
+      { client_id: clientId }
+    ]
+  };
+  if (loanIds.length > 0) {
+    transactionWhere[db.Sequelize.Op.or].push({ loan_id: { [db.Sequelize.Op.in]: loanIds } });
+  }
+  if (savingsIds.length > 0) {
+    transactionWhere[db.Sequelize.Op.or].push({ savings_account_id: { [db.Sequelize.Op.in]: savingsIds } });
+  }
+
+  const allTransactions = await db.Transaction.findAll({
+    where: transactionWhere,
+    attributes: ['id'],
+    transaction
+  });
+  const transactionIds = allTransactions.map(t => t.id);
+
+  // 4. Delete revenue records associated with transactions
+  if (transactionIds.length > 0) {
+    await db.Revenue.destroy({
+      where: { transaction_id: { [db.Sequelize.Op.in]: transactionIds } },
+      force: true, // Hard delete
+      transaction
+    });
+  }
+
+  // 5. Delete loan repayments for all loans
+  if (loanIds.length > 0) {
+    await db.LoanRepayment.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      force: true, // Hard delete
+      transaction
+    });
+
+    // 6. Delete collections for all loans
+    await db.Collection.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      force: true, // Hard delete
+      transaction
+    });
+
+    // 7. Delete revenue records associated with loans
+    await db.Revenue.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      force: true, // Hard delete
+      transaction
+    });
+
+    // 8. Delete loans
+    await db.Loan.destroy({
+      where: { client_id: clientId },
+      force: true, // Hard delete
+      transaction
+    });
+  }
+
+  // 9. Delete savings accounts
+  if (savingsIds.length > 0) {
+    await db.SavingsAccount.destroy({
+      where: { client_id: clientId },
+      force: true, // Hard delete
+      transaction
+    });
+  }
+
+  // 10. Delete all transactions (client_id, loan_id, or savings_account_id)
+  await db.Transaction.destroy({
+    where: transactionWhere,
+    force: true, // Hard delete
+    transaction
+  });
+
+  // 11. Delete collaterals for this client
+  await db.Collateral.destroy({
+    where: { client_id: clientId },
+    force: true, // Hard delete
+    transaction
+  });
+
+  // 12. Delete KYC documents for this client
+  await db.KycDocument.destroy({
+    where: { client_id: clientId },
+    force: true, // Hard delete
+    transaction
+  });
+}
+
 // Update client
 router.put('/:id', authenticate, upload.single('profile_image'), async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const client = await db.Client.findByPk(req.params.id);
+    const client = await db.Client.findByPk(req.params.id, { transaction });
     if (!client) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Client not found'
       });
     }
+
+    const wasActive = client.status === 'active';
+    const willBeInactive = req.body.status === 'inactive';
 
     // Handle profile image upload
     const updateData = { ...req.body };
@@ -511,17 +616,27 @@ router.put('/:id', authenticate, upload.single('profile_image'), async (req, res
       }
     }
 
-    await client.update(updateData);
+    await client.update(updateData, { transaction });
+
+    // If client is being made inactive, delete all financial records
+    if (wasActive && willBeInactive) {
+      await deleteClientFinancialRecords(client.id, transaction);
+    }
+
+    await transaction.commit();
 
     // Fetch updated client
     const updatedClient = await db.Client.findByPk(req.params.id);
 
     res.json({
       success: true,
-      message: 'Client updated successfully',
+      message: willBeInactive && wasActive 
+        ? 'Client updated and all financial records deleted successfully' 
+        : 'Client updated successfully',
       data: { client: updatedClient }
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Update client error:', error);
     res.status(500).json({
       success: false,
@@ -660,28 +775,38 @@ router.delete('/all', authenticate, authorize('admin'), async (req, res) => {
   }
 });
 
-// Delete client (soft delete)
+// Delete client (soft delete) and all financial records
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const client = await db.Client.findByPk(req.params.id);
+    const client = await db.Client.findByPk(req.params.id, { transaction });
     if (!client) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Client not found'
       });
     }
 
-    await client.destroy(); // Soft delete with paranoid
+    // Delete all financial records associated with the client
+    await deleteClientFinancialRecords(client.id, transaction);
+
+    // Finally, delete the client
+    await client.destroy({ transaction }); // Soft delete with paranoid
+
+    await transaction.commit();
 
     res.json({
       success: true,
-      message: 'Client deleted successfully'
+      message: 'Client and all associated financial records deleted successfully'
     });
   } catch (error) {
+    await transaction.rollback();
+    console.error('Delete client error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete client',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
