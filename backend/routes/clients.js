@@ -20,36 +20,45 @@ router.get('/', authenticate, async (req, res) => {
 
     let whereClause = {};
     
+    // Build base conditions
+    const baseConditions = {};
+    
     // For borrower role, only show their own client
     if (userRole === 'borrower') {
-      whereClause.user_id = req.userId;
+      baseConditions.user_id = req.userId;
     } else if (branchId && userRole !== 'admin' && userRole !== 'general_manager') {
-      whereClause.branch_id = branchId;
+      baseConditions.branch_id = branchId;
     }
 
+    if (status) baseConditions.status = status;
+    if (kyc_status) baseConditions.kyc_status = kyc_status;
+
+    // Build search conditions
+    let searchConditions = null;
     if (search) {
-      // If whereClause already has conditions, we need to combine them properly
-      const searchConditions = [
-        { first_name: { [Op.like]: `%${search}%` } },
-        { last_name: { [Op.like]: `%${search}%` } },
-        { email: { [Op.like]: `%${search}%` } },
-        { client_number: { [Op.like]: `%${search}%` } }
-      ];
-      
-      // If whereClause already has Op.or, merge it
-      if (whereClause[Op.or]) {
-        whereClause[Op.and] = [
-          { [Op.or]: whereClause[Op.or] },
-          { [Op.or]: searchConditions }
-        ];
-        delete whereClause[Op.or];
-      } else {
-        whereClause[Op.or] = searchConditions;
-      }
+      searchConditions = {
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${search}%` } },
+          { last_name: { [Op.like]: `%${search}%` } },
+          { email: { [Op.like]: `%${search}%` } },
+          { client_number: { [Op.like]: `%${search}%` } }
+        ]
+      };
     }
 
-    if (status) whereClause.status = status;
-    if (kyc_status) whereClause.kyc_status = kyc_status;
+    // Combine conditions
+    if (searchConditions && Object.keys(baseConditions).length > 0) {
+      whereClause = {
+        [Op.and]: [
+          baseConditions,
+          searchConditions
+        ]
+      };
+    } else if (searchConditions) {
+      whereClause = searchConditions;
+    } else {
+      whereClause = baseConditions;
+    }
 
     const { count, rows } = await db.Client.findAndCountAll({
       where: whereClause,
