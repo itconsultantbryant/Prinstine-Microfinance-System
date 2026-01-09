@@ -416,79 +416,136 @@ router.post('/', authenticate, [
       }
     }
 
-    // Prepare loan data, ensuring proper types
-    const loanData = {
-      loan_number: loanNumber,
-      client_id: clientId, // Already validated and parsed
-      amount: loanAmount, // Total loan amount requested
-      principal_amount: principal, // Principal after upfront deduction
-      interest_rate: interestRate,
-      term_months: termMonths,
-      loan_type: loanType,
-      payment_frequency: paymentFrequency,
-      interest_method: interestMethod,
-      loan_purpose: req.body.loan_purpose ? String(req.body.loan_purpose).trim() : null,
-      collateral_id: collateralId,
-      disbursement_date: disbursementDate,
-      branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
-      status: userRole === 'borrower' ? 'pending' : 'pending',
-      outstanding_balance: outstandingBalance, // Principal + total interest + default charges
-      monthly_payment: scheduleData.monthly_payment || 0,
-      total_interest: totalInterest || 0, // Total interest (calculated on loan amount or principal)
-      total_amount: totalAmount || loanAmount, // Total amount (loan amount + interest + charges)
-      repayment_schedule: JSON.stringify(scheduleData.schedule || []),
-      application_date: disbursementDate,
-      notes: req.body.notes ? String(req.body.notes).trim() : null,
-      created_by: req.userId,
-      upfront_percentage: upfrontPercentage,
-      upfront_amount: upfrontAmount,
-      default_charges_percentage: defaultChargesPercentage,
-      default_charges_amount: defaultChargesAmount
-    };
-
-    const loan = await db.Loan.create(loanData);
-
-    // Create repayment schedule entries
-    try {
-      for (const scheduleItem of scheduleData.schedule) {
-        await db.LoanRepayment.create({
-          loan_id: loan.id,
-          repayment_number: `${loanNumber}-${String(scheduleItem.installment_number).padStart(3, '0')}`,
-          installment_number: scheduleItem.installment_number,
-          amount: scheduleItem.total_payment,
-          principal_amount: scheduleItem.principal_amount,
-          interest_amount: scheduleItem.interest_amount,
-          due_date: scheduleItem.due_date,
-          payment_date: null,
-          status: 'pending',
-          created_by: req.userId
-        });
-      }
-    } catch (repaymentError) {
-      console.error('Error creating repayment schedule entries:', repaymentError);
-      // Continue even if repayment entries fail - loan is still created
-    }
-
-    const isBorrowerRequest = userRole === 'borrower';
+    // Use transaction to ensure atomicity and prevent race conditions
+    const transaction = await db.sequelize.transaction();
     
-    res.status(201).json({
-      success: true,
-      message: isBorrowerRequest 
-        ? 'Loan request submitted successfully! It will be reviewed by a loan officer, head of micro loan, or admin.'
-        : 'Loan created successfully',
-      data: { 
-        loan,
-        repayment_schedule: scheduleData.schedule,
-        schedule_summary: {
-          total_interest: totalInterest,
-          total_amount: totalAmount,
-          monthly_payment: scheduleData.monthly_payment,
-          upfront_amount: upfrontAmount,
-          principal_amount: principal,
-          default_charges_amount: defaultChargesAmount
+    try {
+      // Double-check loan number uniqueness within transaction
+      const existingLoanInTransaction = await db.Loan.findOne({ 
+        where: { loan_number: loanNumber },
+        paranoid: false,
+        transaction
+      });
+      
+      if (existingLoanInTransaction) {
+        // Regenerate loan number within transaction
+        const lastLoanInTransaction = await db.Loan.findOne({
+          order: [['id', 'DESC']],
+          attributes: ['loan_number'],
+          paranoid: false,
+          transaction
+        });
+        
+        let sequenceNumber = 1;
+        if (lastLoanInTransaction && lastLoanInTransaction.loan_number) {
+          const lastNumber = parseInt(lastLoanInTransaction.loan_number.replace('LN', '')) || 0;
+          sequenceNumber = lastNumber + 1;
+        }
+        
+        // Find next available number
+        let newLoanNumber;
+        let attempts = 0;
+        do {
+          newLoanNumber = `LN${String(sequenceNumber).padStart(6, '0')}`;
+          const checkLoan = await db.Loan.findOne({ 
+            where: { loan_number: newLoanNumber },
+            paranoid: false,
+            transaction
+          });
+          if (!checkLoan) {
+            loanNumber = newLoanNumber;
+            break;
+          }
+          sequenceNumber++;
+          attempts++;
+        } while (attempts < 100);
+        
+        if (attempts >= 100) {
+          throw new Error('Unable to generate unique loan number after multiple attempts');
         }
       }
-    });
+
+      // Prepare loan data, ensuring proper types
+      const loanData = {
+        loan_number: loanNumber,
+        client_id: clientId, // Already validated and parsed
+        amount: loanAmount, // Total loan amount requested
+        principal_amount: principal, // Principal after upfront deduction
+        interest_rate: interestRate,
+        term_months: termMonths,
+        loan_type: loanType,
+        payment_frequency: paymentFrequency,
+        interest_method: interestMethod,
+        loan_purpose: req.body.loan_purpose ? String(req.body.loan_purpose).trim() : null,
+        collateral_id: collateralId,
+        disbursement_date: disbursementDate,
+        branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
+        status: userRole === 'borrower' ? 'pending' : 'pending',
+        outstanding_balance: outstandingBalance, // Principal + total interest + default charges
+        monthly_payment: scheduleData.monthly_payment || 0,
+        total_interest: totalInterest || 0, // Total interest (calculated on loan amount or principal)
+        total_amount: totalAmount || loanAmount, // Total amount (loan amount + interest + charges)
+        repayment_schedule: JSON.stringify(scheduleData.schedule || []),
+        application_date: disbursementDate,
+        notes: req.body.notes ? String(req.body.notes).trim() : null,
+        created_by: req.userId,
+        upfront_percentage: upfrontPercentage,
+        upfront_amount: upfrontAmount,
+        default_charges_percentage: defaultChargesPercentage,
+        default_charges_amount: defaultChargesAmount
+      };
+
+      const loan = await db.Loan.create(loanData, { transaction });
+
+      // Create repayment schedule entries
+      try {
+        for (const scheduleItem of scheduleData.schedule) {
+          await db.LoanRepayment.create({
+            loan_id: loan.id,
+            repayment_number: `${loanNumber}-${String(scheduleItem.installment_number).padStart(3, '0')}`,
+            installment_number: scheduleItem.installment_number,
+            amount: scheduleItem.total_payment,
+            principal_amount: scheduleItem.principal_amount,
+            interest_amount: scheduleItem.interest_amount,
+            due_date: scheduleItem.due_date,
+            payment_date: null,
+            status: 'pending',
+            created_by: req.userId
+          }, { transaction });
+        }
+      } catch (repaymentError) {
+        console.error('Error creating repayment schedule entries:', repaymentError);
+        throw repaymentError; // Rollback transaction if repayments fail
+      }
+      
+      // Commit transaction
+      await transaction.commit();
+
+      const isBorrowerRequest = userRole === 'borrower';
+      
+      res.status(201).json({
+        success: true,
+        message: isBorrowerRequest 
+          ? 'Loan request submitted successfully! It will be reviewed by a loan officer, head of micro loan, or admin.'
+          : 'Loan created successfully',
+        data: { 
+          loan,
+          repayment_schedule: scheduleData.schedule,
+          schedule_summary: {
+            total_interest: totalInterest,
+            total_amount: totalAmount,
+            monthly_payment: scheduleData.monthly_payment,
+            upfront_amount: upfrontAmount,
+            principal_amount: principal,
+            default_charges_amount: defaultChargesAmount
+          }
+        }
+      });
+    } catch (transactionError) {
+      // Rollback transaction on error
+      await transaction.rollback();
+      throw transactionError; // Re-throw to be caught by outer catch block
+    }
   } catch (error) {
     console.error('Create loan error:', error);
     console.error('Error stack:', error.stack);
