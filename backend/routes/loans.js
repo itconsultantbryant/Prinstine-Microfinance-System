@@ -207,9 +207,56 @@ router.post('/', authenticate, [
     const loanCalculation = require('../services/loanCalculation');
     const { getLoanTypeConfig, calculateUpfrontAmount, calculatePrincipalAmount } = require('../config/loanTypes');
     
-    // Generate loan number
-    const loanCount = await db.Loan.count();
-    const loanNumber = `LN${String(loanCount + 1).padStart(6, '0')}`;
+    // Generate unique loan number (check for existing numbers to avoid duplicates)
+    let loanNumber;
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    // Get the highest existing loan number
+    const lastLoan = await db.Loan.findOne({
+      order: [['id', 'DESC']],
+      attributes: ['loan_number']
+    });
+    
+    let sequenceNumber = 1;
+    if (lastLoan && lastLoan.loan_number) {
+      // Extract number from last loan number (e.g., "LN000123" -> 123)
+      const lastNumber = parseInt(lastLoan.loan_number.replace('LN', '')) || 0;
+      sequenceNumber = lastNumber + 1;
+    }
+    
+    do {
+      loanNumber = `LN${String(sequenceNumber).padStart(6, '0')}`;
+      
+      // Check if this loan number already exists (including soft-deleted)
+      const existingLoan = await db.Loan.findOne({ 
+        where: { loan_number: loanNumber },
+        paranoid: false // Check including soft-deleted
+      });
+      
+      if (!existingLoan) {
+        break; // Found a unique number
+      }
+      
+      sequenceNumber++;
+      attempts++;
+    } while (attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) {
+      // Fallback: use timestamp-based number
+      const timestamp = Date.now();
+      loanNumber = `LN${String(timestamp).slice(-6)}`;
+      
+      // Double-check this one too
+      const existingLoan = await db.Loan.findOne({ 
+        where: { loan_number: loanNumber },
+        paranoid: false
+      });
+      if (existingLoan) {
+        // Last resort: add random suffix
+        loanNumber = `LN${String(timestamp).slice(-6)}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+      }
+    }
 
     const loanType = req.body.loan_type || 'personal';
     const loanTypeConfig = getLoanTypeConfig(loanType);
