@@ -19,6 +19,13 @@ const Dues = () => {
   const [receipt, setReceipt] = useState(null);
   const [duesHistory, setDuesHistory] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    total_dues: '',
+    dues_currency: 'USD'
+  });
 
   useEffect(() => {
     fetchClients();
@@ -33,7 +40,7 @@ const Dues = () => {
 
   const fetchClients = async () => {
     try {
-      const params = {};
+      const params = { all: 'true' }; // Fetch all clients
       if (search) params.search = search;
       
       const response = await apiClient.get('/api/clients', { params });
@@ -47,6 +54,66 @@ const Dues = () => {
       console.error('Failed to fetch clients:', error);
       toast.error('Failed to load clients');
       setLoading(false);
+    }
+  };
+
+  const handleView = async (clientId) => {
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}`);
+      setSelectedClient(response.data.data.client);
+      setShowViewModal(true);
+    } catch (error) {
+      console.error('Failed to fetch client details:', error);
+      toast.error('Failed to load client details');
+    }
+  };
+
+  const handleEdit = async (clientId) => {
+    try {
+      const response = await apiClient.get(`/api/clients/${clientId}`);
+      const client = response.data.data.client;
+      setEditingClient(client);
+      setEditFormData({
+        total_dues: Math.abs(parseFloat(client.total_dues || 0)),
+        dues_currency: client.dues_currency || 'USD'
+      });
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Failed to fetch client details:', error);
+      toast.error('Failed to load client details');
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const totalDues = -Math.abs(parseFloat(editFormData.total_dues || 0)); // Make negative
+      await apiClient.put(`/api/clients/${editingClient.id}`, {
+        total_dues: totalDues,
+        dues_currency: editFormData.dues_currency
+      });
+      toast.success('Dues updated successfully!');
+      setShowEditModal(false);
+      setEditingClient(null);
+      await fetchClients();
+    } catch (error) {
+      console.error('Failed to update dues:', error);
+      toast.error(error.response?.data?.message || 'Failed to update dues');
+    }
+  };
+
+  const handleDelete = async (clientId) => {
+    if (!window.confirm('Are you sure you want to delete this client? This will move them to the Recycle Bin. Their dues will also be removed.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/clients/${clientId}`);
+      toast.success('Client deleted successfully');
+      await fetchClients();
+    } catch (error) {
+      console.error('Failed to delete client:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete client');
     }
   };
 
@@ -186,15 +253,15 @@ const Dues = () => {
                           <td>{client.email}</td>
                           <td>
                             <strong className="text-primary">
-                              ${totalYearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {(client.dues_currency === 'LRD' ? 'LRD' : '$')}{totalYearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </strong>
                           </td>
                           <td>
-                            ${monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {(client.dues_currency === 'LRD' ? 'LRD' : '$')}{monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td>
                             <strong className={outstandingDues < 0 ? 'text-danger' : 'text-success'}>
-                              ${outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {(client.dues_currency === 'LRD' ? 'LRD' : '$')}{outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </strong>
                           </td>
                           <td>
@@ -205,7 +272,21 @@ const Dues = () => {
                           <td>
                             <div className="btn-group">
                               <button
+                                className="btn btn-sm btn-outline-info"
+                                onClick={() => handleView(client.id)}
+                                title="View Details"
+                              >
+                                <i className="fas fa-eye"></i>
+                              </button>
+                              <button
                                 className="btn btn-sm btn-outline-primary"
+                                onClick={() => handleEdit(client.id)}
+                                title="Edit Dues"
+                              >
+                                <i className="fas fa-edit"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-success"
                                 onClick={() => {
                                   setSelectedClient(client);
                                   setShowPaymentModal(true);
@@ -213,15 +294,24 @@ const Dues = () => {
                                 title="Make Payment"
                                 disabled={outstandingDues >= 0}
                               >
-                                <i className="fas fa-money-bill-wave"></i> Pay
+                                <i className="fas fa-money-bill-wave"></i>
                               </button>
                               <button
-                                className="btn btn-sm btn-outline-info"
+                                className="btn btn-sm btn-outline-secondary"
                                 onClick={() => fetchDuesHistory(client.id)}
                                 title="View Payment History"
                               >
-                                <i className="fas fa-history"></i> History
+                                <i className="fas fa-history"></i>
                               </button>
+                              {user?.role === 'admin' && (
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDelete(client.id)}
+                                  title="Delete Client"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -376,6 +466,169 @@ const Dues = () => {
             </div>
           </div>
           <div className="modal-backdrop fade show" onClick={() => setShowHistoryModal(false)} style={{ zIndex: 1040 }}></div>
+        </>
+      )}
+
+      {/* View Client Modal */}
+      {showViewModal && selectedClient && (
+        <>
+          <div className="modal fade show" style={{ display: 'block', zIndex: 1050 }} tabIndex="-1">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-primary text-white">
+                  <h5 className="modal-title">
+                    <i className="fas fa-eye me-2"></i>Client Details - {selectedClient.first_name} {selectedClient.last_name}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedClient(null);
+                  }}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Client Number</label>
+                      <p className="form-control-plaintext"><strong>{selectedClient.client_number}</strong></p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Name</label>
+                      <p className="form-control-plaintext">{selectedClient.first_name} {selectedClient.last_name}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Email</label>
+                      <p className="form-control-plaintext">{selectedClient.email}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Phone</label>
+                      <p className="form-control-plaintext">{selectedClient.phone || 'N/A'}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Total Yearly Dues</label>
+                      <p className="form-control-plaintext">
+                        <strong className="text-primary">
+                          {selectedClient.dues_currency === 'LRD' ? 'LRD' : '$'}{Math.abs(parseFloat(selectedClient.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Monthly Dues</label>
+                      <p className="form-control-plaintext">
+                        {selectedClient.dues_currency === 'LRD' ? 'LRD' : '$'}{getMonthlyDues(selectedClient.total_dues).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Outstanding Dues</label>
+                      <p className="form-control-plaintext">
+                        <strong className={parseFloat(selectedClient.total_dues || 0) < 0 ? 'text-danger' : 'text-success'}>
+                          {selectedClient.dues_currency === 'LRD' ? 'LRD' : '$'}{parseFloat(selectedClient.total_dues || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                      </p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Dues Currency</label>
+                      <p className="form-control-plaintext">{selectedClient.dues_currency || 'USD'}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-bold text-muted">Status</label>
+                      <p className="form-control-plaintext">
+                        <span className={`badge bg-${selectedClient.status === 'active' ? 'success' : 'secondary'}`}>
+                          {selectedClient.status}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedClient(null);
+                  }}>
+                    Close
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => {
+                    setShowViewModal(false);
+                    handleEdit(selectedClient.id);
+                  }}>
+                    <i className="fas fa-edit me-2"></i>Edit Dues
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" onClick={() => {
+            setShowViewModal(false);
+            setSelectedClient(null);
+          }} style={{ zIndex: 1040 }}></div>
+        </>
+      )}
+
+      {/* Edit Dues Modal */}
+      {showEditModal && editingClient && (
+        <>
+          <div className="modal fade show" style={{ display: 'block', zIndex: 1050 }} tabIndex="-1">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-primary text-white">
+                  <h5 className="modal-title">
+                    <i className="fas fa-edit me-2"></i>Edit Dues - {editingClient.first_name} {editingClient.last_name}
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => {
+                    setShowEditModal(false);
+                    setEditingClient(null);
+                  }}></button>
+                </div>
+                <form onSubmit={handleUpdate}>
+                  <div className="modal-body">
+                    <div className="alert alert-info">
+                      <strong>Current Outstanding Dues:</strong> {editingClient.dues_currency === 'LRD' ? 'LRD' : '$'}{Math.abs(parseFloat(editingClient.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Total Yearly Dues <span className="text-danger">*</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="form-control"
+                          value={editFormData.total_dues}
+                          onChange={(e) => setEditFormData({ ...editFormData, total_dues: e.target.value })}
+                          min="0"
+                          required
+                        />
+                        <small className="text-muted">Enter the total yearly dues amount (will be stored as negative)</small>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Currency <span className="text-danger">*</span></label>
+                        <select
+                          className="form-select"
+                          value={editFormData.dues_currency}
+                          onChange={(e) => setEditFormData({ ...editFormData, dues_currency: e.target.value })}
+                          required
+                        >
+                          <option value="USD">USD</option>
+                          <option value="LRD">LRD</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => {
+                      setShowEditModal(false);
+                      setEditingClient(null);
+                    }}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      <i className="fas fa-save me-2"></i>Update Dues
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" onClick={() => {
+            setShowEditModal(false);
+            setEditingClient(null);
+          }} style={{ zIndex: 1040 }}></div>
         </>
       )}
 
