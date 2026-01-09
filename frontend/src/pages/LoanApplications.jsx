@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoanApplications = () => {
+  const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchApplications();
+    
+    // Real-time updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchApplications();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchApplications = async () => {
@@ -19,6 +29,53 @@ const LoanApplications = () => {
       console.error('Failed to fetch applications:', error);
       toast.error('Failed to load loan applications');
       setLoading(false);
+    }
+  };
+
+  const handleView = async (loanId) => {
+    try {
+      const response = await apiClient.get(`/api/loans/${loanId}`);
+      // Navigate to loan detail page or show modal
+      window.location.href = `/loans/${loanId}`;
+    } catch (error) {
+      console.error('Failed to fetch loan details:', error);
+      toast.error('Failed to load loan details');
+    }
+  };
+
+  const handleEdit = async (loanId) => {
+    try {
+      const response = await apiClient.get(`/api/loans/${loanId}`);
+      // Navigate to loans page with edit mode
+      window.location.href = `/loans?edit=${loanId}`;
+    } catch (error) {
+      console.error('Failed to fetch loan details:', error);
+      toast.error('Failed to load loan details');
+    }
+  };
+
+  const handleDelete = async (loanId) => {
+    if (!window.confirm('Are you sure you want to delete this loan application? It will be moved to the Recycle Bin.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/loans/${loanId}`);
+      toast.success('Loan application deleted successfully');
+      fetchApplications();
+    } catch (error) {
+      console.error('Failed to delete loan application:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete loan application');
+    }
+  };
+
+  const handleApprove = async (loanId) => {
+    try {
+      await apiClient.post(`/api/loans/${loanId}/approve`);
+      toast.success('Loan application approved successfully!');
+      fetchApplications();
+    } catch (error) {
+      toast.error('Failed to approve loan application');
     }
   };
 
@@ -47,6 +104,7 @@ const LoanApplications = () => {
                     <th>Loan Number</th>
                     <th>Client</th>
                     <th>Amount</th>
+                    <th>Currency</th>
                     <th>Type</th>
                     <th>Term</th>
                     <th>Status</th>
@@ -57,24 +115,58 @@ const LoanApplications = () => {
                   {applications.length > 0 ? (
                     applications.map((app) => (
                       <tr key={app.id} className="hover-lift">
-                        <td>{app.loan_number}</td>
+                        <td><strong>{app.loan_number}</strong></td>
                         <td>{app.client?.first_name} {app.client?.last_name}</td>
-                        <td>${parseFloat(app.amount).toLocaleString()}</td>
+                        <td>{app.currency === 'LRD' ? 'LRD' : '$'}{parseFloat(app.amount).toLocaleString()}</td>
+                        <td>{app.currency || 'USD'}</td>
                         <td>{app.loan_type}</td>
                         <td>{app.term_months} months</td>
                         <td>
                           <span className="badge bg-warning">{app.status}</span>
                         </td>
                         <td>
-                          <button className="btn btn-sm btn-outline-primary">
-                            <i className="fas fa-eye"></i> Review
-                          </button>
+                          <div className="btn-group">
+                            <Link
+                              to={`/loans/${app.id}`}
+                              className="btn btn-sm btn-outline-info"
+                              title="View Details"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </Link>
+                            {user?.role !== 'borrower' && user?.role === 'admin' && (
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => handleEdit(app.id)}
+                                title="Edit"
+                              >
+                                <i className="fas fa-edit"></i>
+                              </button>
+                            )}
+                            {user?.role !== 'borrower' && (
+                              <button
+                                className="btn btn-sm btn-outline-success"
+                                onClick={() => handleApprove(app.id)}
+                                title="Approve"
+                              >
+                                <i className="fas fa-check"></i>
+                              </button>
+                            )}
+                            {user?.role === 'admin' && (
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => handleDelete(app.id)}
+                                title="Delete"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center text-muted py-5">
+                      <td colSpan="8" className="text-center text-muted py-5">
                         No pending applications
                       </td>
                     </tr>
