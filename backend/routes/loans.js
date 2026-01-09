@@ -262,19 +262,34 @@ router.post('/', authenticate, [
       defaultChargesAmount = 0;
       
       // Generate schedule with interest calculated on the full loan amount
-      scheduleData = loanCalculation.generateRepaymentSchedule(
-        loanAmount, // Use full loan amount (no upfront deduction)
-        interestRate, // 10% interest
-        termMonths,
-        interestMethod,
-        paymentFrequency,
-        disbursementDate
-      );
+      try {
+        scheduleData = loanCalculation.generateRepaymentSchedule(
+          loanAmount, // Use full loan amount (no upfront deduction)
+          interestRate, // 10% interest
+          termMonths,
+          interestMethod,
+          paymentFrequency,
+          disbursementDate
+        );
+        
+        if (!scheduleData || !scheduleData.schedule || !Array.isArray(scheduleData.schedule) || scheduleData.schedule.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to generate repayment schedule. Please check loan parameters.'
+          });
+        }
+      } catch (scheduleError) {
+        console.error('Schedule generation error:', scheduleError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to generate repayment schedule: ' + scheduleError.message
+        });
+      }
       
       // Total interest = schedule interest (calculated on loan amount)
-      totalInterest = scheduleData.total_interest;
+      totalInterest = scheduleData.total_interest || 0;
       // Total amount = loan amount + interest
-      totalAmount = scheduleData.total_amount;
+      totalAmount = scheduleData.total_amount || loanAmount;
     } else {
       // Other loan types: Upfront is a fee, interest is calculated on principal
       // Calculate upfront percentage and amount
@@ -293,19 +308,34 @@ router.post('/', authenticate, [
         : 0;
       
       // Generate repayment schedule based on principal
-      scheduleData = loanCalculation.generateRepaymentSchedule(
-        principal,
-        interestRate,
-        termMonths,
-        interestMethod,
-        paymentFrequency,
-        disbursementDate
-      );
+      try {
+        scheduleData = loanCalculation.generateRepaymentSchedule(
+          principal,
+          interestRate,
+          termMonths,
+          interestMethod,
+          paymentFrequency,
+          disbursementDate
+        );
+        
+        if (!scheduleData || !scheduleData.schedule || !Array.isArray(scheduleData.schedule) || scheduleData.schedule.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to generate repayment schedule. Please check loan parameters.'
+          });
+        }
+      } catch (scheduleError) {
+        console.error('Schedule generation error:', scheduleError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to generate repayment schedule: ' + scheduleError.message
+        });
+      }
       
       // Total interest = schedule interest (calculated on principal)
-      totalInterest = scheduleData.total_interest;
+      totalInterest = scheduleData.total_interest || 0;
       // Total amount = principal + schedule interest + default charges
-      totalAmount = scheduleData.total_amount + defaultChargesAmount;
+      totalAmount = (scheduleData.total_amount || principal) + defaultChargesAmount;
     }
     
     // Outstanding balance = principal + total interest (from schedule) + default charges
