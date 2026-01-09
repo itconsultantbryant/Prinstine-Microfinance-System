@@ -181,14 +181,11 @@ body {
 
 /* Ensure tables have minimum width for horizontal scrolling */
 .table-responsive > .table {
-  min-width: 800px;
-  width: 100%;
-}
-
-.table-responsive > .table {
   margin-bottom: 0;
   width: 100%;
-  min-width: 100%;
+  min-width: 800px; /* Ensure horizontal scroll on smaller screens */
+  white-space: nowrap;
+}
 }
 
 .table {
