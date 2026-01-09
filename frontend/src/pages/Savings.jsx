@@ -59,7 +59,7 @@ const Savings = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await apiClient.get('/api/clients');
+      const response = await apiClient.get('/api/clients', { params: { all: 'true' } });
       setClients(response.data.data.clients || []);
     } catch (error) {
       console.error('Failed to fetch clients:', error);

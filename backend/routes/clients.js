@@ -13,8 +13,10 @@ const router = express.Router();
 // Get all clients
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, status, kyc_status } = req.query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit, search, status, kyc_status, all = false } = req.query;
+    // If 'all' is true or no limit specified, fetch all clients (up to 10000 for safety)
+    const fetchLimit = (all === 'true' || !limit) ? 10000 : parseInt(limit);
+    const offset = (page - 1) * (fetchLimit || 10);
     const branchId = req.user?.branch_id || null;
     const userRole = req.user?.role || 'user';
 
@@ -66,9 +68,10 @@ router.get('/', authenticate, async (req, res) => {
         { model: db.Branch, as: 'branch', required: false, attributes: ['id', 'name', 'code'] },
         { model: db.User, as: 'creator', required: false, attributes: ['id', 'name'] }
       ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      limit: fetchLimit,
+      offset: offset,
+      order: [['createdAt', 'DESC']],
+      paranoid: false // Include soft-deleted for accurate count
     });
 
     res.json({

@@ -59,7 +59,7 @@ const Clients = () => {
 
   const fetchClients = async () => {
     try {
-      const params = {};
+      const params = { all: 'true' }; // Fetch all clients
       if (search) params.search = search;
       if (statusFilter !== 'all') params.status = statusFilter;
       
@@ -121,6 +121,8 @@ const Clients = () => {
         toast.success('Client created successfully!');
       }
       setShowModal(false);
+      // Immediately refresh the client list
+      await fetchClients();
       setFormData({
         first_name: '',
         last_name: '',
