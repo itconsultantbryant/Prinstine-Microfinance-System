@@ -418,6 +418,7 @@ const Dues = () => {
                           <tr>
                             <th>Transaction #</th>
                             <th>Amount</th>
+                            <th>Currency</th>
                             <th>Description</th>
                             <th>Date</th>
                             <th>Status</th>
@@ -429,9 +430,10 @@ const Dues = () => {
                               <td><strong>{payment.transaction_number}</strong></td>
                               <td>
                                 <strong className="text-success">
-                                  ${parseFloat(payment.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {(payment.currency === 'LRD' ? 'LRD' : '$')}{parseFloat(payment.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </strong>
                               </td>
+                              <td>{payment.currency || 'USD'}</td>
                               <td>{payment.description || 'Dues payment'}</td>
                               <td>{new Date(payment.transaction_date).toLocaleDateString()}</td>
                               <td>
@@ -448,7 +450,7 @@ const Dues = () => {
                             <th>
                               {(selectedClient.dues_currency === 'LRD' ? 'LRD' : '$')}{duesHistory.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </th>
-                            <th colSpan="3"></th>
+                            <th colSpan="4"></th>
                           </tr>
                         </tfoot>
                       </table>
