@@ -13,8 +13,10 @@ const Transactions = () => {
   const [formData, setFormData] = useState({
     client_id: '',
     loan_id: '',
+    savings_account_id: '',
     type: 'deposit',
     amount: '',
+    currency: 'USD', // Default currency
     description: '',
     transaction_date: new Date().toISOString().split('T')[0]
   });
@@ -88,8 +90,10 @@ const Transactions = () => {
       setFormData({
         client_id: '',
         loan_id: '',
+        savings_account_id: '',
         type: 'deposit',
         amount: '',
+        currency: 'USD',
         description: '',
         transaction_date: new Date().toISOString().split('T')[0]
       });
@@ -254,7 +258,7 @@ const Transactions = () => {
                           <option value="due_payment">Due Payment</option>
                         </select>
                       </div>
-                      <div className="col-md-6 mb-3">
+                      <div className="col-md-4 mb-3">
                         <label className="form-label">Amount <span className="text-danger">*</span></label>
                         <input
                           type="number"
@@ -266,7 +270,20 @@ const Transactions = () => {
                           required
                         />
                       </div>
-                      <div className="col-md-6 mb-3">
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Currency <span className="text-danger">*</span></label>
+                        <select
+                          className="form-select"
+                          required
+                          value={formData.currency || 'USD'}
+                          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        >
+                          <option value="LRD">Liberian Dollar (LRD)</option>
+                          <option value="USD">US Dollar (USD)</option>
+                        </select>
+                        <small className="text-muted">Currency will inherit from loan/savings if applicable</small>
+                      </div>
+                      <div className="col-md-4 mb-3">
                         <label className="form-label">Transaction Date</label>
                         <input
                           type="date"
@@ -281,12 +298,20 @@ const Transactions = () => {
                           <select
                             className="form-select"
                             value={formData.loan_id}
-                            onChange={(e) => setFormData({ ...formData, loan_id: e.target.value })}
+                            onChange={(e) => {
+                              const selectedLoan = loans.find(l => l.id === parseInt(e.target.value));
+                              setFormData({ 
+                                ...formData, 
+                                loan_id: e.target.value,
+                                // Inherit currency from loan if loan is selected
+                                currency: selectedLoan?.currency || formData.currency || 'USD'
+                              });
+                            }}
                           >
                             <option value="">Select Loan</option>
                             {loans.filter(l => l.client_id === parseInt(formData.client_id)).map((loan) => (
                               <option key={loan.id} value={loan.id}>
-                                {loan.loan_number} - ${parseFloat(loan.amount || 0).toLocaleString()}
+                                {loan.loan_number} - {loan.currency || 'USD'} {parseFloat(loan.amount || 0).toLocaleString()}
                               </option>
                             ))}
                           </select>

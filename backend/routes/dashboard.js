@@ -47,37 +47,61 @@ router.get('/', authenticate, async (req, res) => {
       whereClause.branch_id = branchId;
     }
 
-      // Get statistics
+      // Get statistics with currency separation (LRD and USD)
       let totalClients = 0;
       let activeLoans = 0;
-      let totalSavingsResult = null;
       let overdueLoans = 0;
       let totalTransactions = 0;
       let recentLoans = [];
       let recentTransactions = [];
 
+      // Currency-separated statistics
+      let totalSavingsLRD = 0;
+      let totalSavingsUSD = 0;
+      let totalLoansLRD = 0;
+      let totalLoansUSD = 0;
+      let outstandingLoansLRD = 0;
+      let outstandingLoansUSD = 0;
+      let totalCollectionsLRD = 0;
+      let totalCollectionsUSD = 0;
+      let portfolioValueLRD = 0;
+      let portfolioValueUSD = 0;
+      
+      // Financial metrics
+      let totalDuesLRD = 0;
+      let totalDuesUSD = 0;
+      let outstandingDuesLRD = 0;
+      let outstandingDuesUSD = 0;
+      let clientsWithOutstandingDuesLRD = 0;
+      let clientsWithOutstandingDuesUSD = 0;
+      let clientsPaidDuesLRD = 0;
+      let clientsPaidDuesUSD = 0;
+      let totalFinesLRD = 0;
+      let totalFinesUSD = 0;
+
       try {
-        const results = await Promise.allSettled([
-          db.Client.count({ where: whereClause }),
-          db.Loan.count({ 
-            where: { 
-              ...whereClause,
-              status: { [Op.in]: ['active', 'disbursed'] }
-            }
-          }),
-          db.SavingsAccount.sum('balance', { 
+        // Fetch all data at once for efficiency
+        const [clientsCount, allLoans, allSavings, allTransactions, allClients, loansList, transactionsList] = await Promise.all([
+          db.Client.count({ where: whereClause }).catch(() => 0),
+          db.Loan.findAll({ 
+            where: whereClause,
+            attributes: ['id', 'currency', 'amount', 'outstanding_balance', 'status']
+          }).catch(() => []),
+          db.SavingsAccount.findAll({ 
             where: { 
               ...whereClause,
               status: 'active'
-            }
-          }),
-          db.Loan.count({ 
-            where: { 
-              ...whereClause,
-              status: 'overdue'
-            }
-          }),
-          db.Transaction.count({ where: whereClause }),
+            },
+            attributes: ['id', 'currency', 'balance']
+          }).catch(() => []),
+          db.Transaction.findAll({ 
+            where: whereClause,
+            attributes: ['id', 'currency', 'amount', 'type']
+          }).catch(() => []),
+          db.Client.findAll({
+            where: whereClause,
+            attributes: ['id', 'total_dues', 'dues_currency']
+          }).catch(() => []),
           db.Loan.findAll({
             where: whereClause,
             include: [
@@ -86,7 +110,7 @@ router.get('/', authenticate, async (req, res) => {
             ],
             order: [['createdAt', 'DESC']],
             limit: 5
-          }),
+          }).catch(() => []),
           db.Transaction.findAll({
             where: whereClause,
             include: [
@@ -95,77 +119,133 @@ router.get('/', authenticate, async (req, res) => {
             ],
             order: [['createdAt', 'DESC']],
             limit: 10
-          })
+          }).catch(() => [])
         ]);
 
-        totalClients = results[0].status === 'fulfilled' ? (results[0].value || 0) : 0;
-        if (results[0].status === 'rejected') console.error('Error counting clients:', results[0].reason);
+        totalClients = clientsCount || 0;
+        recentLoans = loansList || [];
+        recentTransactions = transactionsList || [];
         
-        activeLoans = results[1].status === 'fulfilled' ? (results[1].value || 0) : 0;
-        if (results[1].status === 'rejected') console.error('Error counting active loans:', results[1].reason);
+        // Calculate currency-separated totals
+        allLoans.forEach(loan => {
+          const currency = loan.currency || 'USD';
+          const amount = parseFloat(loan.amount || 0);
+          const outstanding = parseFloat(loan.outstanding_balance || 0);
+          
+          if (loan.status === 'active' || loan.status === 'disbursed') {
+            if (currency === 'LRD') {
+              totalLoansLRD += amount;
+              outstandingLoansLRD += outstanding;
+              portfolioValueLRD += outstanding;
+            } else {
+              totalLoansUSD += amount;
+              outstandingLoansUSD += outstanding;
+              portfolioValueUSD += outstanding;
+            }
+          }
+          if (loan.status === 'overdue') {
+            if (currency === 'LRD') {
+              // Count overdue loans
+            } else {
+              // Count overdue loans
+            }
+          }
+        });
         
-        totalSavingsResult = results[2].status === 'fulfilled' ? results[2].value : null;
-        if (results[2].status === 'rejected') console.error('Error summing savings:', results[2].reason);
+        activeLoans = allLoans.filter(l => l.status === 'active' || l.status === 'disbursed').length;
+        overdueLoans = allLoans.filter(l => l.status === 'overdue').length;
         
-        overdueLoans = results[3].status === 'fulfilled' ? (results[3].value || 0) : 0;
-        if (results[3].status === 'rejected') console.error('Error counting overdue loans:', results[3].reason);
+        // Calculate currency-separated savings
+        allSavings.forEach(saving => {
+          const currency = saving.currency || 'USD';
+          const balance = parseFloat(saving.balance || 0);
+          if (currency === 'LRD') {
+            totalSavingsLRD += balance;
+          } else {
+            totalSavingsUSD += balance;
+          }
+        });
         
-        totalTransactions = results[4].status === 'fulfilled' ? (results[4].value || 0) : 0;
-        if (results[4].status === 'rejected') console.error('Error counting transactions:', results[4].reason);
+        // Calculate currency-separated transactions
+        allTransactions.forEach(transaction => {
+          const currency = transaction.currency || 'USD';
+          const amount = parseFloat(transaction.amount || 0);
+          
+          if (transaction.type === 'loan_payment') {
+            if (currency === 'LRD') {
+              totalCollectionsLRD += amount;
+            } else {
+              totalCollectionsUSD += amount;
+            }
+          }
+          
+          if (transaction.type === 'penalty' || transaction.type === 'fee') {
+            if (currency === 'LRD') {
+              totalFinesLRD += amount;
+            } else {
+              totalFinesUSD += amount;
+            }
+          }
+        });
         
-        recentLoans = results[5].status === 'fulfilled' ? (results[5].value || []) : [];
-        if (results[5].status === 'rejected') console.error('Error fetching recent loans:', results[5].reason);
+        totalTransactions = allTransactions.length;
         
-        recentTransactions = results[6].status === 'fulfilled' ? (results[6].value || []) : [];
-        if (results[6].status === 'rejected') console.error('Error fetching recent transactions:', results[6].reason);
+        // Calculate currency-separated dues
+        allClients.forEach(client => {
+          const duesCurrency = client.dues_currency || 'USD';
+          const totalDues = parseFloat(client.total_dues || 0);
+          
+          if (totalDues < 0) { // Outstanding dues (negative)
+            if (duesCurrency === 'LRD') {
+              totalDuesLRD += totalDues;
+              outstandingDuesLRD += Math.abs(totalDues);
+              clientsWithOutstandingDuesLRD++;
+            } else {
+              totalDuesUSD += totalDues;
+              outstandingDuesUSD += Math.abs(totalDues);
+              clientsWithOutstandingDuesUSD++;
+            }
+          } else if (totalDues === 0) {
+            // Client has paid all dues - check if they had dues before
+            const duesPayments = allTransactions.filter(t => 
+              t.client_id === client.id && t.type === 'due_payment'
+            );
+            if (duesPayments.length > 0) {
+              if (duesCurrency === 'LRD') {
+                clientsPaidDuesLRD++;
+              } else {
+                clientsPaidDuesUSD++;
+              }
+            }
+          }
+        });
+        
       } catch (error) {
         console.error('Error fetching dashboard statistics:', error);
         console.error('Error stack:', error.stack);
         // Continue with default values
       }
 
-      const totalSavings = totalSavingsResult !== null && totalSavingsResult !== undefined ? parseFloat(totalSavingsResult) : 0;
+      const totalSavings = totalSavingsLRD + totalSavingsUSD;
+      const portfolioValue = portfolioValueLRD + portfolioValueUSD;
+      const totalCollections = totalCollectionsLRD + totalCollectionsUSD;
 
-      // Calculate portfolio value
-      let portfolioValue = 0;
-      try {
-        const portfolioValueResult = await db.Loan.sum('outstanding_balance', {
-          where: {
-            ...whereClause,
-            status: { [Op.in]: ['active', 'disbursed'] }
-          }
-        });
-        portfolioValue = portfolioValueResult !== null && portfolioValueResult !== undefined ? parseFloat(portfolioValueResult) : 0;
-      } catch (error) {
-        console.error('Error calculating portfolio value:', error);
-      }
-
-      // Calculate total collections
-      let totalCollections = 0;
-      try {
-        const totalCollectionsResult = await db.Transaction.sum('amount', {
-          where: {
-            ...whereClause,
-            type: 'loan_payment'
-          }
-        });
-        totalCollections = totalCollectionsResult !== null && totalCollectionsResult !== undefined ? parseFloat(totalCollectionsResult) : 0;
-      } catch (error) {
-        console.error('Error calculating total collections:', error);
-      }
-
-      // Get clients with outstanding dues (for admin dashboard)
-      let clientsWithDues = [];
-      if (userRole === 'admin' || userRole === 'finance' || userRole === 'general_manager') {
+      // Get clients with outstanding dues (for admin dashboard) - separated by currency
+      let clientsWithDuesLRD = [];
+      let clientsWithDuesUSD = [];
+      if (userRole === 'admin' || userRole === 'finance' || userRole === 'general_manager' || userRole === 'head_micro_loan' || userRole === 'supervisor') {
         try {
-          clientsWithDues = await db.Client.findAll({
+          const allClientsWithDues = await db.Client.findAll({
             where: {
               total_dues: { [Op.lt]: 0 } // Negative values indicate outstanding dues
             },
-            attributes: ['id', 'client_number', 'first_name', 'last_name', 'email', 'total_dues'],
+            attributes: ['id', 'client_number', 'first_name', 'last_name', 'email', 'total_dues', 'dues_currency'],
             order: [['total_dues', 'ASC']], // Most negative first (most outstanding)
-            limit: 10
+            limit: 50 // Get more to separate by currency
           });
+          
+          clientsWithDuesLRD = allClientsWithDues.filter(c => (c.dues_currency || 'USD') === 'LRD').slice(0, 10);
+          clientsWithDuesUSD = allClientsWithDues.filter(c => (c.dues_currency || 'USD') === 'USD').slice(0, 10);
         } catch (error) {
           console.error('Error fetching clients with dues:', error);
         }
@@ -181,11 +261,48 @@ router.get('/', authenticate, async (req, res) => {
           overdueLoans: overdueLoans || 0,
           totalTransactions: totalTransactions || 0,
           portfolioValue: portfolioValue,
-          totalCollections: totalCollections
+          totalCollections: totalCollections,
+          // Currency-separated totals
+          lrd: {
+            totalSavings: totalSavingsLRD,
+            totalLoans: totalLoansLRD,
+            outstandingLoans: outstandingLoansLRD,
+            portfolioValue: portfolioValueLRD,
+            totalCollections: totalCollectionsLRD,
+            totalDues: totalDuesLRD,
+            outstandingDues: outstandingDuesLRD,
+            monthlyDues: outstandingDuesLRD / 12,
+            clientsWithOutstandingDues: clientsWithOutstandingDuesLRD,
+            clientsPaidDues: clientsPaidDuesLRD,
+            totalFines: totalFinesLRD,
+            outstandingSavings: totalSavingsLRD // Outstanding savings = total savings in LRD
+          },
+          usd: {
+            totalSavings: totalSavingsUSD,
+            totalLoans: totalLoansUSD,
+            outstandingLoans: outstandingLoansUSD,
+            portfolioValue: portfolioValueUSD,
+            totalCollections: totalCollectionsUSD,
+            totalDues: totalDuesUSD,
+            outstandingDues: outstandingDuesUSD,
+            monthlyDues: outstandingDuesUSD / 12,
+            clientsWithOutstandingDues: clientsWithOutstandingDuesUSD,
+            clientsPaidDues: clientsPaidDuesUSD,
+            totalFines: totalFinesUSD,
+            outstandingSavings: totalSavingsUSD // Outstanding savings = total savings in USD
+          },
+          // Overall totals (for backward compatibility)
+          totalLoans: totalLoansLRD + totalLoansUSD,
+          totalOutstandingLoans: outstandingLoansLRD + outstandingLoansUSD,
+          totalOutstandingSavings: totalSavingsLRD + totalSavingsUSD
         },
         recentLoans,
         recentTransactions,
-        clientsWithDues: clientsWithDues || []
+        clientsWithDues: {
+          lrd: clientsWithDuesLRD || [],
+          usd: clientsWithDuesUSD || [],
+          all: [...(clientsWithDuesLRD || []), ...(clientsWithDuesUSD || [])].slice(0, 10) // Combined for backward compatibility
+        }
       }
     });
   } catch (error) {

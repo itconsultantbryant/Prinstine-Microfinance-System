@@ -20,6 +20,7 @@ const Savings = () => {
     account_type: 'regular',
     initial_deposit: '',
     interest_rate: '',
+    currency: 'USD', // Default currency
     branch_id: ''
   });
   const [depositData, setDepositData] = useState({
@@ -75,6 +76,7 @@ const Savings = () => {
         account_type: 'regular',
         initial_deposit: '',
         interest_rate: '',
+        currency: 'USD',
         branch_id: ''
       });
       fetchSavings();
@@ -274,6 +276,18 @@ const Savings = () => {
                           min="0"
                           step="0.01"
                         />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Currency <span className="text-danger">*</span></label>
+                        <select
+                          className="form-select"
+                          required
+                          value={formData.currency || 'USD'}
+                          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        >
+                          <option value="LRD">Liberian Dollar (LRD)</option>
+                          <option value="USD">US Dollar (USD)</option>
+                        </select>
                       </div>
                       <div className="col-md-6 mb-3">
                         <label className="form-label">Interest Rate (%)</label>

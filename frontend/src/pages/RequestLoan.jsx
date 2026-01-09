@@ -12,6 +12,7 @@ const RequestLoan = () => {
   const [loanTypes, setLoanTypes] = useState({});
   const [formData, setFormData] = useState({
     amount: '',
+    currency: 'USD', // Default currency
     term_months: '12',
     interest_rate: '',
     upfront_percentage: '',
@@ -291,17 +292,33 @@ const RequestLoan = () => {
                   )}
 
                   <div className="col-md-6 mb-3">
+                    <label className="form-label">Currency <span className="text-danger">*</span></label>
+                    <select
+                      className="form-select"
+                      required
+                      name="currency"
+                      value={formData.currency || 'USD'}
+                      onChange={handleChange}
+                    >
+                      <option value="LRD">Liberian Dollar (LRD)</option>
+                      <option value="USD">US Dollar (USD)</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6 mb-3">
                     <label className="form-label">Loan Amount <span className="text-danger">*</span></label>
                     <div className="input-group">
-                      <span className="input-group-text">$</span>
+                      <span className="input-group-text">{formData.currency === 'LRD' ? 'LRD' : '$'}</span>
                       <input
                         type="number"
+                        name="amount"
                         step="0.01"
                         min="0"
                         className={`form-control ${formErrors.amount ? 'is-invalid' : ''}`}
-                        name="amount"
                         value={formData.amount}
-                        onChange={(e) => handleAmountChange(e.target.value)}
+                        onChange={(e) => {
+                          handleAmountChange(e.target.value);
+                          handleChange(e);
+                        }}
                         placeholder="Enter loan amount"
                         required
                       />
