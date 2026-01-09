@@ -53,7 +53,7 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     currency: {
-      type: DataTypes.ENUM('LRD', 'USD'),
+      type: DataTypes.STRING(3),
       defaultValue: 'USD',
       allowNull: false,
       comment: 'Currency for the transaction (LRD or USD)'
