@@ -30,6 +30,7 @@ const Loans = () => {
   const [formData, setFormData] = useState({
     client_id: '',
     amount: '',
+    currency: 'USD', // Default currency
     interest_rate: '',
     upfront_percentage: '',
     upfront_amount: '',
@@ -254,6 +255,7 @@ const Loans = () => {
       const submitData = {
         client_id: parseInt(formData.client_id),
         amount: parseFloat(formData.amount),
+        currency: formData.currency || 'USD', // Include currency
         interest_rate: parseFloat(formData.interest_rate),
         upfront_percentage: parseFloat(formData.upfront_percentage) || 0,
         default_charges_percentage: parseFloat(formData.default_charges_percentage) || 0,
@@ -805,7 +807,7 @@ const Loans = () => {
                       <i className="fas fa-calculator me-2"></i>Loan Terms
                     </h6>
                     <div className="row g-3 mb-4">
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <label className="form-label">Loan Amount <span className="text-danger">*</span></label>
                         <input
                           type="number"
@@ -817,7 +819,19 @@ const Loans = () => {
                           onChange={(e) => handleAmountChange(e.target.value)}
                         />
                       </div>
-                      <div className="col-md-4">
+                      <div className="col-md-3">
+                        <label className="form-label">Currency <span className="text-danger">*</span></label>
+                        <select
+                          className="form-select"
+                          required
+                          value={formData.currency || 'USD'}
+                          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        >
+                          <option value="LRD">Liberian Dollar (LRD)</option>
+                          <option value="USD">US Dollar (USD)</option>
+                        </select>
+                      </div>
+                      <div className="col-md-3">
                         <label className="form-label">Upfront Percentage (%) <span className="text-danger">*</span></label>
                         <input
                           type="number"
