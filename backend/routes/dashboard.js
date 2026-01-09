@@ -167,6 +167,12 @@ router.get('/', authenticate, async (req, res) => {
         });
         
         // Calculate currency-separated transactions
+        // For borrowers, also calculate personal interest, general interest, and fines
+        let personalInterestLRD = 0;
+        let personalInterestUSD = 0;
+        let generalInterestLRD = 0;
+        let generalInterestUSD = 0;
+        
         allTransactions.forEach(transaction => {
           const currency = transaction.currency || 'USD';
           const amount = parseFloat(transaction.amount || 0);
@@ -184,6 +190,25 @@ router.get('/', authenticate, async (req, res) => {
               totalFinesLRD += amount;
             } else {
               totalFinesUSD += amount;
+            }
+          }
+          
+          // Calculate personal interest and general interest for borrowers
+          if (userRole === 'borrower') {
+            if (transaction.type === 'personal_interest_payment') {
+              if (currency === 'LRD') {
+                personalInterestLRD += amount;
+              } else {
+                personalInterestUSD += amount;
+              }
+            }
+            
+            if (transaction.type === 'general_interest') {
+              if (currency === 'LRD') {
+                generalInterestLRD += amount;
+              } else {
+                generalInterestUSD += amount;
+              }
             }
           }
         });
@@ -275,7 +300,10 @@ router.get('/', authenticate, async (req, res) => {
             clientsWithOutstandingDues: clientsWithOutstandingDuesLRD,
             clientsPaidDues: clientsPaidDuesLRD,
             totalFines: totalFinesLRD,
-            outstandingSavings: totalSavingsLRD // Outstanding savings = total savings in LRD
+            outstandingSavings: totalSavingsLRD, // Outstanding savings = total savings in LRD
+            // Borrower-specific fields
+            personalInterest: userRole === 'borrower' ? personalInterestLRD : 0,
+            generalInterest: userRole === 'borrower' ? generalInterestLRD : 0
           },
           usd: {
             totalSavings: totalSavingsUSD,
@@ -289,7 +317,10 @@ router.get('/', authenticate, async (req, res) => {
             clientsWithOutstandingDues: clientsWithOutstandingDuesUSD,
             clientsPaidDues: clientsPaidDuesUSD,
             totalFines: totalFinesUSD,
-            outstandingSavings: totalSavingsUSD // Outstanding savings = total savings in USD
+            outstandingSavings: totalSavingsUSD, // Outstanding savings = total savings in USD
+            // Borrower-specific fields
+            personalInterest: userRole === 'borrower' ? personalInterestUSD : 0,
+            generalInterest: userRole === 'borrower' ? generalInterestUSD : 0
           },
           // Overall totals (for backward compatibility)
           totalLoans: totalLoansLRD + totalLoansUSD,

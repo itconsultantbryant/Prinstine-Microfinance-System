@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
+import { useAuth } from '../contexts/AuthContext';
 import Receipt from '../components/Receipt';
 
 const Transactions = () => {
+  const { user } = useAuth();
+  const printRef = useRef(null);
   const [transactions, setTransactions] = useState([]);
   const [clients, setClients] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -202,12 +205,23 @@ const Transactions = () => {
     <div className="fade-in">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-1">Transactions</h1>
-          <p className="text-muted">Manage all financial transactions</p>
+          <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'Transaction History' : 'Transactions'}</h1>
+          <p className="text-muted">{user?.role === 'borrower' ? 'View your transaction history' : 'Manage all financial transactions'}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <i className="fas fa-plus me-2"></i>Add Transaction
-        </button>
+        <div className="d-flex gap-2">
+          {user?.role === 'borrower' && (
+            <>
+              <button className="btn btn-outline-primary" onClick={() => window.print()}>
+                <i className="fas fa-print me-2"></i>Print All
+              </button>
+            </>
+          )}
+          {user?.role !== 'borrower' && (
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <i className="fas fa-plus me-2"></i>Add Transaction
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -244,7 +258,8 @@ const Transactions = () => {
                             {transaction.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </td>
-                        <td>${parseFloat(transaction.amount || 0).toLocaleString()}</td>
+                        <td>{(transaction.currency === 'LRD' ? 'LRD' : '$')}{parseFloat(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>{transaction.currency || 'USD'}</td>
                         <td>{transaction.client?.first_name} {transaction.client?.last_name}</td>
                         <td>{transaction.loan?.loan_number || 'N/A'}</td>
                         <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
@@ -253,7 +268,6 @@ const Transactions = () => {
                             {transaction.status}
                           </span>
                         </td>
-                        <td>{transaction.currency || 'USD'}</td>
                         <td>
                           <div className="btn-group">
                             <button
@@ -263,20 +277,24 @@ const Transactions = () => {
                             >
                               <i className="fas fa-eye"></i>
                             </button>
-                            <button
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() => handleEdit(transaction.id)}
-                              title="Edit"
-                            >
-                              <i className="fas fa-edit"></i>
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => handleDelete(transaction.id)}
-                              title="Delete"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
+                            {user?.role !== 'borrower' && (
+                              <>
+                                <button
+                                  className="btn btn-sm btn-outline-primary"
+                                  onClick={() => handleEdit(transaction.id)}
+                                  title="Edit"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDelete(transaction.id)}
+                                  title="Delete"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </>
+                            )}
                             <button
                               className="btn btn-sm btn-outline-secondary"
                               onClick={() => {
@@ -294,6 +312,71 @@ const Transactions = () => {
                             >
                               <i className="fas fa-receipt"></i>
                             </button>
+                            {user?.role === 'borrower' && (
+                              <button
+                                className="btn btn-sm btn-outline-success"
+                                onClick={() => {
+                                  const printWindow = window.open('', '_blank');
+                                  printWindow.document.write(`
+                                    <html>
+                                      <head>
+                                        <title>Transaction Receipt - ${transaction.transaction_number}</title>
+                                        <style>
+                                          body { font-family: Arial, sans-serif; padding: 20px; }
+                                          .header { text-align: center; margin-bottom: 30px; }
+                                          .details { margin: 20px 0; }
+                                          .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 10px; border-bottom: 1px solid #eee; }
+                                          .label { font-weight: bold; }
+                                          .footer { margin-top: 30px; text-align: center; color: #666; }
+                                        </style>
+                                      </head>
+                                      <body>
+                                        <div class="header">
+                                          <h1>Transaction Receipt</h1>
+                                          <p>Transaction Number: ${transaction.transaction_number}</p>
+                                        </div>
+                                        <div class="details">
+                                          <div class="detail-row">
+                                            <span class="label">Date:</span>
+                                            <span>${new Date(transaction.transaction_date).toLocaleDateString()}</span>
+                                          </div>
+                                          <div class="detail-row">
+                                            <span class="label">Type:</span>
+                                            <span>${transaction.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                                          </div>
+                                          <div class="detail-row">
+                                            <span class="label">Amount:</span>
+                                            <span>${transaction.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                          </div>
+                                          <div class="detail-row">
+                                            <span class="label">Currency:</span>
+                                            <span>${transaction.currency || 'USD'}</span>
+                                          </div>
+                                          ${transaction.description ? `
+                                          <div class="detail-row">
+                                            <span class="label">Description:</span>
+                                            <span>${transaction.description}</span>
+                                          </div>
+                                          ` : ''}
+                                          <div class="detail-row">
+                                            <span class="label">Status:</span>
+                                            <span>${transaction.status || 'completed'}</span>
+                                          </div>
+                                        </div>
+                                        <div class="footer">
+                                          <p>Generated on ${new Date().toLocaleString()}</p>
+                                        </div>
+                                      </body>
+                                    </html>
+                                  `);
+                                  printWindow.document.close();
+                                  printWindow.print();
+                                }}
+                                title="Print Transaction"
+                              >
+                                <i className="fas fa-print"></i>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

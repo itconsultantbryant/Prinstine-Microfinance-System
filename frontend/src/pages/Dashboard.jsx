@@ -252,68 +252,122 @@ const Dashboard = () => {
 
       {/* Role-based Statistics Cards */}
       <div className="row mb-4">
-        {/* For Borrower role - show their data in both LRD and USD */}
+        {/* For Borrower role - show their financial summary */}
         {user?.role === ROLES.BORROWER ? (
           <>
-            {/* LRD Summary for Borrower */}
-            <div className="col-12 mb-3">
-              <h5 className="text-primary"><i className="fas fa-coins me-2"></i>LRD Summary</h5>
+            {/* USD Component - Above */}
+            <div className="col-12 mb-4">
+              <div className="card border-success">
+                <div className="card-header bg-success text-white">
+                  <h5 className="mb-0"><i className="fas fa-dollar-sign me-2"></i>USD Summary</h5>
+                </div>
+                <div className="card-body">
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Total Savings</span>
+                        <span className="text-success fs-5">+ ${(statistics.usd?.totalSavings || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Personal Interest</span>
+                        <span className="text-success fs-5">+ ${(statistics.usd?.personalInterest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">General Interest</span>
+                        <span className="text-success fs-5">+ ${(statistics.usd?.generalInterest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Outstanding Loan</span>
+                        <span className="text-danger fs-5">- ${(statistics.usd?.outstandingLoans || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Outstanding Dues</span>
+                        <span className="text-danger fs-5">- ${(statistics.usd?.outstandingDues || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Fines</span>
+                        <span className="text-danger fs-5">- ${(statistics.usd?.totalFines || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="d-flex justify-content-between align-items-center p-4 bg-primary text-white rounded">
+                        <span className="fw-bold fs-4">Total Take Home</span>
+                        <span className="fs-3 fw-bold">
+                          ${((statistics.usd?.totalSavings || 0) + (statistics.usd?.personalInterest || 0) + (statistics.usd?.generalInterest || 0) - (statistics.usd?.outstandingLoans || 0) - (statistics.usd?.outstandingDues || 0) - (statistics.usd?.totalFines || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <StatCard
-              icon="fas fa-hand-holding-usd"
-              title="My Active Loans (LRD)"
-              value={statistics.lrd?.outstandingLoans ? `LRD ${statistics.lrd.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
-              color="success"
-            />
-            <StatCard
-              icon="fas fa-piggy-bank"
-              title="My Savings Balance (LRD)"
-              value={statistics.lrd?.totalSavings ? `LRD ${statistics.lrd.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
-              color="info"
-            />
-            <StatCard
-              icon="fas fa-calendar-check"
-              title="Outstanding Dues (LRD)"
-              value={statistics.lrd?.outstandingDues ? `LRD ${statistics.lrd.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
-              color="warning"
-            />
-            <StatCard
-              icon="fas fa-exclamation-triangle"
-              title="Overdue Loans (LRD)"
-              value={statistics.overdueLoans || 0}
-              color="danger"
-            />
-            
-            {/* USD Summary for Borrower */}
-            <div className="col-12 mb-3 mt-3">
-              <h5 className="text-success"><i className="fas fa-dollar-sign me-2"></i>USD Summary</h5>
+
+            {/* LRD Component - Below */}
+            <div className="col-12">
+              <div className="card border-primary">
+                <div className="card-header bg-primary text-white">
+                  <h5 className="mb-0"><i className="fas fa-coins me-2"></i>LRD Summary</h5>
+                </div>
+                <div className="card-body">
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Total Savings</span>
+                        <span className="text-success fs-5">+ LRD {(statistics.lrd?.totalSavings || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Personal Interest</span>
+                        <span className="text-success fs-5">+ LRD {(statistics.lrd?.personalInterest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">General Interest</span>
+                        <span className="text-success fs-5">+ LRD {(statistics.lrd?.generalInterest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Outstanding Loan</span>
+                        <span className="text-danger fs-5">- LRD {(statistics.lrd?.outstandingLoans || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Outstanding Dues</span>
+                        <span className="text-danger fs-5">- LRD {(statistics.lrd?.outstandingDues || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                        <span className="fw-bold">Fines</span>
+                        <span className="text-danger fs-5">- LRD {(statistics.lrd?.totalFines || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="d-flex justify-content-between align-items-center p-4 bg-primary text-white rounded">
+                        <span className="fw-bold fs-4">Total Take Home</span>
+                        <span className="fs-3 fw-bold">
+                          LRD {((statistics.lrd?.totalSavings || 0) + (statistics.lrd?.personalInterest || 0) + (statistics.lrd?.generalInterest || 0) - (statistics.lrd?.outstandingLoans || 0) - (statistics.lrd?.outstandingDues || 0) - (statistics.lrd?.totalFines || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <StatCard
-              icon="fas fa-hand-holding-usd"
-              title="My Active Loans (USD)"
-              value={statistics.usd?.outstandingLoans ? `$${statistics.usd.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
-              color="success"
-            />
-            <StatCard
-              icon="fas fa-piggy-bank"
-              title="My Savings Balance (USD)"
-              value={statistics.usd?.totalSavings ? `$${statistics.usd.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
-              color="info"
-            />
-            <StatCard
-              icon="fas fa-calendar-check"
-              title="Outstanding Dues (USD)"
-              value={statistics.usd?.outstandingDues ? `$${statistics.usd.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
-              color="warning"
-            />
-            {realtimeData && (
-              <StatCard
-                icon="fas fa-clock"
-                title="Pending Requests"
-                value={realtimeData.pendingLoans || 0}
-                color="warning"
-              />
-            )}
           </>
         ) : (
           <>

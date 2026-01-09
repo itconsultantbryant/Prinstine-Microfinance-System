@@ -335,6 +335,26 @@ export const getMenuItemsForRole = (userRole) => {
     { path: '/profile', icon: 'fas fa-user', label: 'Profile', roles: ['all'] },
   ];
 
+  // Special handling for borrowers - only show specific items
+  if (userRole === 'borrower') {
+    return allMenuItems
+      .filter(item => {
+        // Only allow: Dashboard, Request Loan, Transaction History, and Profile
+        const allowedPaths = ['/', '/request-loan', '/transactions', '/profile'];
+        return allowedPaths.includes(item.path);
+      })
+      .map(item => {
+        // Apply dynamic label if getLabel function exists
+        if (item.getLabel && typeof item.getLabel === 'function') {
+          return {
+            ...item,
+            label: item.getLabel(userRole)
+          };
+        }
+        return item;
+      });
+  }
+
   return allMenuItems
     .filter(item => {
       // Exclude items for specific roles
