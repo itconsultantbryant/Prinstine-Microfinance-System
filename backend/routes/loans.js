@@ -151,12 +151,21 @@ router.post('/', authenticate, [
   body('term_months').isInt({ min: 1 }).withMessage('Valid term is required')
 ], async (req, res) => {
   try {
+    // Log request body for debugging
+    console.log('Loan creation request:', {
+      body: req.body,
+      userId: req.userId,
+      userRole: req.user?.role
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.error('Validation errors:', errors.array());
+      const errorMessages = errors.array().map(e => `${e.param}: ${e.msg}`).join(', ');
       return res.status(400).json({ 
         success: false, 
-        message: 'Validation failed',
+        message: `Validation failed: ${errorMessages}`,
+        error: errorMessages,
         errors: errors.array() 
       });
     }

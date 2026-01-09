@@ -269,15 +269,19 @@ const Loans = () => {
       };
 
       // Validate required fields
-      if (!submitData.client_id || !submitData.amount || !submitData.interest_rate || !submitData.term_months) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
+      const missingFields = [];
+      if (!submitData.client_id || isNaN(submitData.client_id)) missingFields.push('Client');
+      if (!submitData.amount || isNaN(submitData.amount) || submitData.amount <= 0) missingFields.push('Loan Amount');
+      if (submitData.interest_rate === undefined || submitData.interest_rate === null || isNaN(submitData.interest_rate) || submitData.interest_rate < 0) missingFields.push('Interest Rate');
+      if (!submitData.term_months || isNaN(submitData.term_months) || submitData.term_months < 1) missingFields.push('Term (months)');
 
-      if (isNaN(submitData.client_id) || isNaN(submitData.amount) || isNaN(submitData.interest_rate) || isNaN(submitData.term_months)) {
-        toast.error('Please enter valid numeric values');
+      if (missingFields.length > 0) {
+        toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
         return;
       }
+      
+      // Log the data being sent for debugging
+      console.log('Submitting loan data:', submitData);
 
       const response = await apiClient.post('/api/loans', submitData);
       toast.success('Loan created successfully!');
@@ -314,23 +318,41 @@ const Loans = () => {
     } catch (error) {
       console.error('Loan creation error:', error);
       console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Full error object:', JSON.stringify(error.response?.data, null, 2));
       
-      let errorMessage = 'Failed to create loan';
+      let errorMessage = 'Failed to create loan. Please check all required fields.';
       
       if (error.response?.data) {
+        const errorData = error.response.data;
+        
         // Handle validation errors array
-        if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
-          errorMessage = error.response.data.errors.map(e => e.msg || e.message || e).join(', ');
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          const validationErrors = errorData.errors
+            .map(e => {
+              if (typeof e === 'string') return e;
+              if (e.msg) return `${e.param || 'Field'}: ${e.msg}`;
+              if (e.message) return e.message;
+              return JSON.stringify(e);
+            })
+            .filter(Boolean)
+            .join(', ');
+          errorMessage = validationErrors || errorData.message || errorMessage;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
         }
       } else if (error.message) {
         errorMessage = error.message;
       }
       
-      toast.error(errorMessage);
+      // Ensure error message is not empty or too short
+      if (!errorMessage || errorMessage.length < 3) {
+        errorMessage = 'Failed to create loan. Please check the console for details.';
+      }
+      
+      toast.error(errorMessage, { autoClose: 5000 });
     }
   };
 
