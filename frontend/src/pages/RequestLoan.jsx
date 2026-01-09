@@ -352,7 +352,10 @@ const RequestLoan = () => {
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Principal Amount (After Upfront)</label>
                       <div className="form-control-plaintext">
-                        <strong>${calculatePrincipal(formData.amount, formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                        <strong>
+                          {formData.currency === 'LRD' ? 'LRD' : '$'}
+                          {calculatePrincipal(formData.amount, formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
                       </div>
                     </div>
                   )}

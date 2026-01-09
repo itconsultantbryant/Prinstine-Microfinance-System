@@ -395,21 +395,29 @@ const Savings = () => {
                     <div className="mb-3">
                       <label className="form-label">Current Balance</label>
                       <div className="form-control-plaintext">
-                        <strong className="text-success">${parseFloat(selectedAccount.balance || 0).toLocaleString()}</strong>
+                        <strong className="text-danger">
+                          {selectedAccount.currency === 'LRD' ? 'LRD' : '$'}
+                          {parseFloat(selectedAccount.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
+                        <small className="text-muted ms-2">({selectedAccount.currency || 'USD'})</small>
                       </div>
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Withdrawal Amount <span className="text-danger">*</span></label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={withdrawData.amount}
-                        onChange={(e) => setWithdrawData({ ...withdrawData, amount: e.target.value })}
-                        min="0.01"
-                        max={selectedAccount.balance || 0}
-                        step="0.01"
-                        required
-                      />
+                      <div className="input-group">
+                        <span className="input-group-text">{selectedAccount.currency === 'LRD' ? 'LRD' : '$'}</span>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={withdrawData.amount}
+                          onChange={(e) => setWithdrawData({ ...withdrawData, amount: e.target.value })}
+                          min="0.01"
+                          max={selectedAccount.balance || 0}
+                          step="0.01"
+                          required
+                        />
+                      </div>
+                      <small className="text-muted">Currency: {selectedAccount.currency || 'USD'}</small>
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Description</label>
@@ -422,7 +430,8 @@ const Savings = () => {
                     </div>
                     {withdrawData.amount && (
                       <div className="alert alert-info">
-                        <strong>New Balance:</strong> ${Math.max(0, parseFloat(selectedAccount.balance || 0) - parseFloat(withdrawData.amount || 0)).toFixed(2)}
+                        <strong>New Balance:</strong> {selectedAccount.currency === 'LRD' ? 'LRD' : '$'}
+                        {Math.max(0, parseFloat(selectedAccount.balance || 0) - parseFloat(withdrawData.amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     )}
                   </div>

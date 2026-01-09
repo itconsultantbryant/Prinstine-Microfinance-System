@@ -72,17 +72,31 @@ async function addCurrencyFields() {
       // Add dues_currency field to clients table
       try {
         const [clientColumns] = await sequelize.query(`
-          SELECT column_name 
+          SELECT column_name, data_type, udt_name
           FROM information_schema.columns 
           WHERE table_name = 'clients' 
           AND column_name = 'dues_currency'
         `);
         
         if (clientColumns.length === 0) {
-          await sequelize.query(`ALTER TABLE clients ADD COLUMN dues_currency currency_enum DEFAULT 'USD' NOT NULL`);
+          // Add as VARCHAR(3) to match model definition
+          await sequelize.query(`ALTER TABLE clients ADD COLUMN dues_currency VARCHAR(3) DEFAULT 'USD' NOT NULL`);
           console.log('✅ Added dues_currency column to clients table');
         } else {
-          console.log('✅ dues_currency column already exists in clients table');
+          // Check if it's an ENUM and needs conversion
+          const column = clientColumns[0];
+          if (column.udt_name && column.udt_name.includes('enum')) {
+            // Convert ENUM to VARCHAR(3)
+            await sequelize.query(`
+              ALTER TABLE clients 
+              ALTER COLUMN dues_currency TYPE VARCHAR(3) 
+              USING dues_currency::text
+            `);
+            await sequelize.query(`ALTER TABLE clients ALTER COLUMN dues_currency SET DEFAULT 'USD'`);
+            console.log('✅ Converted dues_currency from ENUM to VARCHAR(3)');
+          } else {
+            console.log('✅ dues_currency column already exists in clients table');
+          }
         }
       } catch (err) {
         if (!err.message.includes('already exists') && !err.message.includes('duplicate')) {

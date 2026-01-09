@@ -7,6 +7,7 @@ const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [clients, setClients] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -25,6 +26,7 @@ const Transactions = () => {
     fetchTransactions();
     fetchClients();
     fetchLoans();
+    fetchSavingsAccounts();
     
     // Real-time updates every 5 seconds
     const interval = setInterval(() => {
@@ -33,6 +35,21 @@ const Transactions = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-set currency when loan or client is selected
+  useEffect(() => {
+    if (formData.loan_id) {
+      const selectedLoan = loans.find(l => l.id === parseInt(formData.loan_id));
+      if (selectedLoan && selectedLoan.currency) {
+        setFormData(prev => ({ ...prev, currency: selectedLoan.currency }));
+      }
+    } else if (formData.client_id && formData.type === 'due_payment') {
+      const selectedClient = clients.find(c => c.id === parseInt(formData.client_id));
+      if (selectedClient && selectedClient.dues_currency) {
+        setFormData(prev => ({ ...prev, currency: selectedClient.dues_currency }));
+      }
+    }
+  }, [formData.loan_id, formData.client_id, formData.type, loans, clients]);
 
   const fetchTransactions = async () => {
     try {
@@ -81,6 +98,7 @@ const Transactions = () => {
           transaction_number: transaction.transaction_number,
           client_name: transaction.client ? `${transaction.client.first_name} ${transaction.client.last_name}` : '',
           amount: transaction.amount,
+          currency: transaction.currency || 'USD',
           date: transaction.transaction_date,
           type: transaction.type,
           description: transaction.description
@@ -181,6 +199,7 @@ const Transactions = () => {
                                 transaction_number: transaction.transaction_number,
                                 client_name: transaction.client ? `${transaction.client.first_name} ${transaction.client.last_name}` : '',
                                 amount: transaction.amount,
+                                currency: transaction.currency || 'USD',
                                 date: transaction.transaction_date,
                                 type: transaction.type,
                                 description: transaction.description

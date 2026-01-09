@@ -155,7 +155,7 @@ module.exports = (sequelize) => {
       comment: 'Total yearly dues for the client (starts as negative when set)'
     },
     dues_currency: {
-      type: DataTypes.ENUM('LRD', 'USD'),
+      type: DataTypes.STRING(3),
       defaultValue: 'USD',
       allowNull: false,
       comment: 'Currency for the total_dues field'

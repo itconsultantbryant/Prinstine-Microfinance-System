@@ -444,7 +444,7 @@ const Loans = () => {
               <strong>Loan Number:</strong> ${loan.loan_number || 'N/A'}
             </div>
             <div class="info-item">
-              <strong>Loan Amount:</strong> $${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <strong>Loan Amount:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <small>(${loan.currency || 'USD'})</small>
             </div>
             <div class="info-item">
               <strong>Interest Rate:</strong> ${loan.interest_rate || 0}%
@@ -453,10 +453,19 @@ const Loans = () => {
               <strong>Term:</strong> ${loan.term_months || 0} months
             </div>
             <div class="info-item">
-              <strong>Monthly Payment:</strong> $${parseFloat(loan.monthly_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <strong>Monthly Payment:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.monthly_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div class="info-item">
-              <strong>Total Interest:</strong> $${parseFloat(loan.total_interest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <strong>Total Interest:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.total_interest || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div class="info-item">
+              <strong>Principal Amount:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.principal_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div class="info-item">
+              <strong>Upfront Amount:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.upfront_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div class="info-item">
+              <strong>Outstanding Balance:</strong> ${loan.currency === 'LRD' ? 'LRD' : '$'}${parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
           
@@ -476,14 +485,15 @@ const Loans = () => {
               ${schedule.map(item => {
                 const statusClass = item.status === 'completed' ? 'status-completed' : 
                                    item.status === 'partial' ? 'status-partial' : 'status-pending';
+                const currencySymbol = loan.currency === 'LRD' ? 'LRD' : '$';
                 return `
                 <tr>
                   <td>${item.installment_number || item.installment_number}</td>
                   <td>${new Date(item.due_date).toLocaleDateString()}</td>
-                  <td>$${parseFloat(item.principal_amount || item.principal_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td>$${parseFloat(item.interest_amount || item.interest_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td><strong>$${parseFloat(item.total_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                  <td>$${parseFloat(item.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>${currencySymbol}${parseFloat(item.principal_amount || item.principal_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>${currencySymbol}${parseFloat(item.interest_amount || item.interest_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td><strong>${currencySymbol}${parseFloat(item.total_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                  <td>${currencySymbol}${parseFloat(item.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td class="${statusClass}">${(item.status || 'pending').toUpperCase()}</td>
                 </tr>
               `;
@@ -845,7 +855,8 @@ const Loans = () => {
                         />
                         {formData.upfront_amount && (
                           <small className="text-muted">
-                            Upfront Amount: ${parseFloat(formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            Upfront Amount: {formData.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </small>
                         )}
                       </div>
@@ -867,7 +878,10 @@ const Loans = () => {
                         <div className="col-md-4">
                           <label className="form-label">Principal Amount (After Upfront)</label>
                           <div className="form-control-plaintext">
-                            <strong>${calculatePrincipal(formData.amount, formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                            <strong>
+                              {formData.currency === 'LRD' ? 'LRD' : '$'}
+                              {calculatePrincipal(formData.amount, formData.upfront_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </strong>
                           </div>
                         </div>
                       )}
@@ -946,7 +960,8 @@ const Loans = () => {
                             />
                             {formData.default_charges_amount && (
                               <small className="text-muted">
-                                Default Charges Amount: ${parseFloat(formData.default_charges_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                Default Charges Amount: {formData.currency === 'LRD' ? 'LRD' : '$'}
+                                {parseFloat(formData.default_charges_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </small>
                             )}
                           </div>
@@ -1101,7 +1116,10 @@ const Loans = () => {
                     <div className="mb-3">
                       <label className="form-label">Outstanding Balance</label>
                       <div className="form-control-plaintext">
-                        <strong className="text-danger">${parseFloat(selectedLoan.outstanding_balance || selectedLoan.amount || 0).toLocaleString()}</strong>
+                        <strong className="text-danger">
+                          {selectedLoan.currency === 'LRD' ? 'LRD' : '$'}
+                          {parseFloat(selectedLoan.outstanding_balance || selectedLoan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </strong>
                       </div>
                     </div>
                     <div className="mb-3">
@@ -1152,7 +1170,8 @@ const Loans = () => {
                     </div>
                     {repayData.amount && (
                       <div className="alert alert-info">
-                        <strong>New Outstanding Balance:</strong> ${Math.max(0, parseFloat(selectedLoan.outstanding_balance || selectedLoan.amount || 0) - parseFloat(repayData.amount || 0)).toFixed(2)}
+                        <strong>New Outstanding Balance:</strong> {selectedLoan.currency === 'LRD' ? 'LRD' : '$'}
+                        {Math.max(0, parseFloat(selectedLoan.outstanding_balance || selectedLoan.amount || 0) - parseFloat(repayData.amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     )}
                   </div>

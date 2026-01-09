@@ -10,13 +10,38 @@ const Accounting = () => {
   const [activeTab, setActiveTab] = useState('chart');
   const [showModal, setShowModal] = useState(false);
   const [financialSummary, setFinancialSummary] = useState({
-    totalSavings: 0,
-    totalPersonalInterest: 0,
-    totalGeneralInterest: 0,
-    totalOutstandingDues: 0,
-    totalOutstandingLoans: 0,
-    grandTotal: 0,
-    overallTotalSavings: 0
+    lrd: {
+      totalSavings: 0,
+      totalPersonalInterest: 0,
+      totalGeneralInterest: 0,
+      totalOutstandingDues: 0,
+      outstandingDues: 0,
+      monthlyDues: 0,
+      totalOutstandingLoans: 0,
+      totalLoans: 0,
+      outstandingSavings: 0,
+      totalFines: 0,
+      clientsWithOutstandingDues: 0,
+      clientsPaidDues: 0,
+      grandTotal: 0,
+      overallTotalSavings: 0
+    },
+    usd: {
+      totalSavings: 0,
+      totalPersonalInterest: 0,
+      totalGeneralInterest: 0,
+      totalOutstandingDues: 0,
+      outstandingDues: 0,
+      monthlyDues: 0,
+      totalOutstandingLoans: 0,
+      totalLoans: 0,
+      outstandingSavings: 0,
+      totalFines: 0,
+      clientsWithOutstandingDues: 0,
+      clientsPaidDues: 0,
+      grandTotal: 0,
+      overallTotalSavings: 0
+    }
   });
   const [formData, setFormData] = useState({
     code: '',
@@ -53,41 +78,145 @@ const Accounting = () => {
       const clients = clientsRes.data.data.clients || [];
       const loans = loansRes.data.data.loans || [];
 
-      const totalSavings = savings.reduce((sum, acc) => 
-        sum + parseFloat(acc.balance || 0), 0
-      );
+      // Initialize currency-separated totals
+      const summary = {
+        lrd: {
+          totalSavings: 0,
+          totalPersonalInterest: 0,
+          totalGeneralInterest: 0,
+          totalOutstandingDues: 0,
+          outstandingDues: 0,
+          monthlyDues: 0,
+          totalOutstandingLoans: 0,
+          totalLoans: 0,
+          outstandingSavings: 0,
+          totalFines: 0,
+          clientsWithOutstandingDues: 0,
+          clientsPaidDues: 0,
+          grandTotal: 0,
+          overallTotalSavings: 0
+        },
+        usd: {
+          totalSavings: 0,
+          totalPersonalInterest: 0,
+          totalGeneralInterest: 0,
+          totalOutstandingDues: 0,
+          outstandingDues: 0,
+          monthlyDues: 0,
+          totalOutstandingLoans: 0,
+          totalLoans: 0,
+          outstandingSavings: 0,
+          totalFines: 0,
+          clientsWithOutstandingDues: 0,
+          clientsPaidDues: 0,
+          grandTotal: 0,
+          overallTotalSavings: 0
+        }
+      };
 
-      const totalPersonalInterest = transactions
-        .filter(t => t.type === 'personal_interest_payment')
-        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      // Calculate savings by currency
+      savings.forEach(acc => {
+        const currency = acc.currency || 'USD';
+        const balance = parseFloat(acc.balance || 0);
+        if (currency === 'LRD') {
+          summary.lrd.totalSavings += balance;
+        } else {
+          summary.usd.totalSavings += balance;
+        }
+      });
 
-      const totalGeneralInterest = transactions
-        .filter(t => t.type === 'general_interest')
-        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      // Calculate interest by currency
+      transactions.forEach(t => {
+        const currency = t.currency || 'USD';
+        const amount = parseFloat(t.amount || 0);
+        if (t.type === 'personal_interest_payment') {
+          if (currency === 'LRD') {
+            summary.lrd.totalPersonalInterest += amount;
+          } else {
+            summary.usd.totalPersonalInterest += amount;
+          }
+        } else if (t.type === 'general_interest') {
+          if (currency === 'LRD') {
+            summary.lrd.totalGeneralInterest += amount;
+          } else {
+            summary.usd.totalGeneralInterest += amount;
+          }
+        } else if (t.type === 'penalty' || t.type === 'fee') {
+          if (currency === 'LRD') {
+            summary.lrd.totalFines += amount;
+          } else {
+            summary.usd.totalFines += amount;
+          }
+        } else if (t.type === 'due_payment') {
+          if (currency === 'LRD') {
+            summary.lrd.clientsPaidDues += 1;
+          } else {
+            summary.usd.clientsPaidDues += 1;
+          }
+        }
+      });
 
-      const totalOutstandingDues = clients
-        .filter(c => parseFloat(c.total_dues || 0) < 0)
-        .reduce((sum, c) => sum + Math.abs(parseFloat(c.total_dues || 0)), 0);
+      // Calculate loans by currency
+      loans.forEach(loan => {
+        const currency = loan.currency || 'USD';
+        const amount = parseFloat(loan.amount || 0);
+        const outstanding = parseFloat(loan.outstanding_balance || 0);
+        if (currency === 'LRD') {
+          summary.lrd.totalLoans += amount;
+          summary.lrd.totalOutstandingLoans += outstanding;
+        } else {
+          summary.usd.totalLoans += amount;
+          summary.usd.totalOutstandingLoans += outstanding;
+        }
+      });
 
-      const totalOutstandingLoans = loans.reduce((sum, loan) => 
-        sum + parseFloat(loan.outstanding_balance || 0), 0
-      );
+      // Calculate dues by currency
+      clients.forEach(client => {
+        const duesCurrency = client.dues_currency || 'USD';
+        const totalDues = parseFloat(client.total_dues || 0);
+        if (totalDues < 0) {
+          const outstanding = Math.abs(totalDues);
+          if (duesCurrency === 'LRD') {
+            summary.lrd.outstandingDues += outstanding;
+            summary.lrd.clientsWithOutstandingDues += 1;
+          } else {
+            summary.usd.outstandingDues += outstanding;
+            summary.usd.clientsWithOutstandingDues += 1;
+          }
+        }
+        if (duesCurrency === 'LRD') {
+          summary.lrd.totalOutstandingDues += totalDues;
+        } else {
+          summary.usd.totalOutstandingDues += totalDues;
+        }
+      });
+
+      // Calculate monthly dues (outstanding dues / 12)
+      summary.lrd.monthlyDues = summary.lrd.outstandingDues / 12;
+      summary.usd.monthlyDues = summary.usd.outstandingDues / 12;
+
+      // Calculate outstanding savings (savings that are negative)
+      savings.forEach(acc => {
+        const currency = acc.currency || 'USD';
+        const balance = parseFloat(acc.balance || 0);
+        if (balance < 0) {
+          if (currency === 'LRD') {
+            summary.lrd.outstandingSavings += Math.abs(balance);
+          } else {
+            summary.usd.outstandingSavings += Math.abs(balance);
+          }
+        }
+      });
 
       // Grand Total = Total Savings + Personal Interest + General Interest - Outstanding Dues
-      const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest - totalOutstandingDues;
-      
-      // Overall Total Savings = Grand Total - Outstanding Loans
-      const overallTotalSavings = grandTotal - totalOutstandingLoans;
+      summary.lrd.grandTotal = summary.lrd.totalSavings + summary.lrd.totalPersonalInterest + summary.lrd.totalGeneralInterest - summary.lrd.outstandingDues;
+      summary.usd.grandTotal = summary.usd.totalSavings + summary.usd.totalPersonalInterest + summary.usd.totalGeneralInterest - summary.usd.outstandingDues;
 
-      setFinancialSummary({
-        totalSavings,
-        totalPersonalInterest,
-        totalGeneralInterest,
-        totalOutstandingDues,
-        totalOutstandingLoans,
-        grandTotal,
-        overallTotalSavings
-      });
+      // Overall Total Savings = Grand Total - Outstanding Loans
+      summary.lrd.overallTotalSavings = summary.lrd.grandTotal - summary.lrd.totalOutstandingLoans;
+      summary.usd.overallTotalSavings = summary.usd.grandTotal - summary.usd.totalOutstandingLoans;
+
+      setFinancialSummary(summary);
     } catch (error) {
       console.error('Failed to fetch financial summary:', error);
     }
@@ -321,51 +450,295 @@ const Accounting = () => {
       {/* Financial Reports */}
       {activeTab === 'reports' && (
         <div className="row">
-          {/* Financial Summary Cards */}
+          {/* LRD Financial Summary */}
           <div className="col-md-12 mb-4">
-            <div className="row g-3">
-              <div className="col-md-3">
-                <div className="card bg-primary text-white">
-                  <div className="card-body">
-                    <h6 className="card-subtitle mb-2 text-white-50">Total Savings</h6>
-                    <h3 className="card-title mb-0">
-                      ${financialSummary.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
-                  </div>
-                </div>
+            <div className="card">
+              <div className="card-header bg-primary text-white">
+                <h5 className="mb-0"><i className="fas fa-coins me-2"></i>LRD Financial Reports</h5>
               </div>
-              <div className="col-md-3">
-                <div className="card bg-success text-white">
-                  <div className="card-body">
-                    <h6 className="card-subtitle mb-2 text-white-50">Personal Interest</h6>
-                    <h3 className="card-title mb-0">
-                      ${financialSummary.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
+              <div className="card-body">
+                <div className="row g-3">
+                  <div className="col-md-2">
+                    <div className="card bg-primary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Savings</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="card bg-info text-white">
-                  <div className="card-body">
-                    <h6 className="card-subtitle mb-2 text-white-50">General Interest</h6>
-                    <h3 className="card-title mb-0">
-                      ${financialSummary.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
+                  <div className="col-md-2">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Personal Interest</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="card bg-warning text-white">
-                  <div className="card-body">
-                    <h6 className="card-subtitle mb-2 text-white-50">Grand Total</h6>
-                    <h3 className="card-title mb-0">
-                      ${financialSummary.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
+                  <div className="col-md-2">
+                    <div className="card bg-info text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">General Interest</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Dues</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-warning text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Monthly Dues</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-secondary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Grand Total</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-dark text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Loans</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Loans</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalOutstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-warning text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Savings</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.outstandingSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-secondary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Fines</h6>
+                        <h5 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.totalFines.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Clients with Dues</h6>
+                        <h5 className="card-title mb-0">
+                          {financialSummary.lrd?.clientsWithOutstandingDues || 0}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Clients Paid Dues</h6>
+                        <h5 className="card-title mb-0">
+                          {financialSummary.lrd?.clientsPaidDues || 0}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-12 mt-3">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings (LRD)</h6>
+                        <h2 className="card-title mb-0">
+                          LRD {financialSummary.lrd?.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h2>
+                        <small className="text-white-50">Grand Total - Outstanding Loans</small>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* USD Financial Summary */}
+          <div className="col-md-12 mb-4">
+            <div className="card">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0"><i className="fas fa-dollar-sign me-2"></i>USD Financial Reports</h5>
+              </div>
+              <div className="card-body">
+                <div className="row g-3">
+                  <div className="col-md-2">
+                    <div className="card bg-primary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Savings</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Personal Interest</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-info text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">General Interest</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Dues</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-warning text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Monthly Dues</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-secondary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Grand Total</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-dark text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Loans</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Loans</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalOutstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-warning text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Savings</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.outstandingSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-secondary text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Total Fines</h6>
+                        <h5 className="card-title mb-0">
+                          ${financialSummary.usd?.totalFines.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-danger text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Clients with Dues</h6>
+                        <h5 className="card-title mb-0">
+                          {financialSummary.usd?.clientsWithOutstandingDues || 0}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-2">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50 small">Clients Paid Dues</h6>
+                        <h5 className="card-title mb-0">
+                          {financialSummary.usd?.clientsPaidDues || 0}
+                        </h5>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-12 mt-3">
+                    <div className="card bg-success text-white">
+                      <div className="card-body text-center">
+                        <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings (USD)</h6>
+                        <h2 className="card-title mb-0">
+                          ${financialSummary.usd?.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                        </h2>
+                        <small className="text-white-50">Grand Total - Outstanding Loans</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Report Cards */}
           <div className="col-md-4 mb-4">
             <div className="card hover-lift">
               <div className="card-body text-center">
