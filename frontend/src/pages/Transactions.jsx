@@ -81,6 +81,15 @@ const Transactions = () => {
     }
   };
 
+  const fetchSavingsAccounts = async () => {
+    try {
+      const response = await apiClient.get('/api/savings');
+      setSavingsAccounts(response.data.data.savingsAccounts || []);
+    } catch (error) {
+      console.error('Failed to fetch savings accounts:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
