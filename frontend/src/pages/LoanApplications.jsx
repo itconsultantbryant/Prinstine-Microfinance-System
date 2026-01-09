@@ -32,17 +32,6 @@ const LoanApplications = () => {
     }
   };
 
-  const handleView = async (loanId) => {
-    try {
-      const response = await apiClient.get(`/api/loans/${loanId}`);
-      // Navigate to loan detail page or show modal
-      window.location.href = `/loans/${loanId}`;
-    } catch (error) {
-      console.error('Failed to fetch loan details:', error);
-      toast.error('Failed to load loan details');
-    }
-  };
-
   const handleEdit = async (loanId) => {
     try {
       const response = await apiClient.get(`/api/loans/${loanId}`);

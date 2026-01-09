@@ -28,12 +28,24 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     if (search) {
-      whereClause[Op.or] = [
+      // If whereClause already has conditions, we need to combine them properly
+      const searchConditions = [
         { first_name: { [Op.like]: `%${search}%` } },
         { last_name: { [Op.like]: `%${search}%` } },
         { email: { [Op.like]: `%${search}%` } },
         { client_number: { [Op.like]: `%${search}%` } }
       ];
+      
+      // If whereClause already has Op.or, merge it
+      if (whereClause[Op.or]) {
+        whereClause[Op.and] = [
+          { [Op.or]: whereClause[Op.or] },
+          { [Op.or]: searchConditions }
+        ];
+        delete whereClause[Op.or];
+      } else {
+        whereClause[Op.or] = searchConditions;
+      }
     }
 
     if (status) whereClause.status = status;

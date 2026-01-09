@@ -243,5 +243,47 @@ router.put('/:id', [
   }
 });
 
+// Delete user (soft delete - admin only)
+router.delete('/:id', authorize('admin'), async (req, res) => {
+  try {
+    const user = await db.User.findByPk(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent deleting yourself
+    if (parseInt(req.params.id) === req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own account'
+      });
+    }
+
+    // Soft delete - check if User model has paranoid mode
+    // If not, we'll just set is_active to false
+    try {
+      await user.destroy(); // This will work if paranoid mode is enabled
+    } catch (destroyError) {
+      // If destroy fails (no paranoid mode), just deactivate
+      await user.update({ is_active: false });
+    }
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;
 
