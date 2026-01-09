@@ -262,13 +262,32 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
       });
     }
 
-    // Soft delete - check if User model has paranoid mode
-    // If not, we'll just set is_active to false
+    // Delete user - set is_active to false (User model doesn't have paranoid mode)
+    // Also check if user has associated client and handle accordingly
     try {
-      await user.destroy(); // This will work if paranoid mode is enabled
-    } catch (destroyError) {
-      // If destroy fails (no paranoid mode), just deactivate
+      // Check if user has associated client
+      const associatedClient = await db.Client.findOne({ where: { user_id: user.id } });
+      
+      if (associatedClient) {
+        // Soft delete the associated client first
+        await associatedClient.destroy();
+      }
+      
+      // Deactivate user account
       await user.update({ is_active: false });
+      
+      // Optionally, we can also delete the user record permanently
+      // Uncomment the line below if you want permanent deletion instead of soft delete
+      // await user.destroy({ force: true });
+    } catch (deleteError) {
+      console.error('Error during user deletion:', deleteError);
+      // Try to at least deactivate the user
+      try {
+        await user.update({ is_active: false });
+      } catch (updateError) {
+        console.error('Error deactivating user:', updateError);
+        throw updateError;
+      }
     }
 
     res.json({

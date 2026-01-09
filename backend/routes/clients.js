@@ -182,17 +182,51 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
       return res.status(400).json({ success: false, errors });
     }
 
-    // Generate client number
-    const clientCount = await db.Client.count();
-    const clientNumber = `CL${String(clientCount + 1).padStart(6, '0')}`;
+    // Generate client number - find the highest existing client number to avoid duplicates
+    let clientNumber;
+    try {
+      // Find the highest client number (including soft-deleted ones)
+      const lastClient = await db.Client.findOne({
+        order: [['id', 'DESC']],
+        paranoid: false // Include soft-deleted clients
+      });
+      
+      if (lastClient && lastClient.client_number) {
+        // Extract number from client_number (e.g., "CL000001" -> 1)
+        const match = lastClient.client_number.match(/\d+$/);
+        const lastNumber = match ? parseInt(match[0]) : 0;
+        clientNumber = `CL${String(lastNumber + 1).padStart(6, '0')}`;
+      } else {
+        // No clients exist, start from 1
+        clientNumber = 'CL000001';
+      }
+      
+      // Double-check uniqueness (in case of race condition)
+      const existingClientNumber = await db.Client.findOne({
+        where: { client_number: clientNumber },
+        paranoid: false
+      });
+      
+      if (existingClientNumber) {
+        // If exists, find the next available number
+        const clientCount = await db.Client.count({ paranoid: false });
+        clientNumber = `CL${String(clientCount + 1).padStart(6, '0')}`;
+      }
+    } catch (error) {
+      console.error('Error generating client number:', error);
+      // Fallback to count-based generation
+      const clientCount = await db.Client.count({ paranoid: false });
+      clientNumber = `CL${String(clientCount + 1).padStart(6, '0')}`;
+    }
 
-    // Check if client with this email already exists
+    // Check if client with this email already exists (including soft-deleted)
     const existingClient = await db.Client.findOne({
-      where: { email: email }
+      where: { email: email },
+      paranoid: false // Check including soft-deleted clients
     });
 
-    if (existingClient) {
-      // Clean up uploaded file if client already exists
+    if (existingClient && !existingClient.deleted_at) {
+      // Clean up uploaded file if client already exists (and is not deleted)
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
@@ -224,9 +258,36 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
       duesCurrency = 'USD'; // Default to USD if invalid
     }
 
-    // Create client
+    // Create client within a transaction to ensure atomicity
+    const transaction = await db.sequelize.transaction();
     let client;
     try {
+      // Double-check client number uniqueness within transaction
+      const existingClientNumber = await db.Client.findOne({
+        where: { client_number: clientNumber },
+        paranoid: false,
+        transaction
+      });
+      
+      if (existingClientNumber) {
+        // Regenerate client number within transaction
+        const lastClient = await db.Client.findOne({
+          order: [['id', 'DESC']],
+          attributes: ['client_number'],
+          paranoid: false,
+          transaction
+        });
+        
+        if (lastClient && lastClient.client_number) {
+          const match = lastClient.client_number.match(/\d+$/);
+          const lastNumber = match ? parseInt(match[0]) : 0;
+          clientNumber = `CL${String(lastNumber + 1).padStart(6, '0')}`;
+        } else {
+          const clientCount = await db.Client.count({ paranoid: false, transaction });
+          clientNumber = `CL${String(clientCount + 1).padStart(6, '0')}`;
+        }
+      }
+      
       client = await db.Client.create({
         first_name: firstName,
         last_name: lastName,
@@ -240,16 +301,42 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
         profile_image: profileImagePath,
         total_dues: totalDues,
         dues_currency: duesCurrency
-      });
+      }, { transaction });
+      
       console.log('Client created successfully:', client.id);
+      
+      // Commit transaction after successful client creation
+      await transaction.commit();
     } catch (createError) {
+      // Rollback transaction on error
+      await transaction.rollback();
       console.error('Error creating client:', createError);
       console.error('Error details:', createError.message);
+      console.error('Error stack:', createError.stack);
+      
       // Clean up uploaded file if client creation fails
       if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error('Error deleting uploaded file:', unlinkError);
+        }
       }
-      throw createError;
+      
+      // Return more specific error messages
+      if (createError.name === 'SequelizeUniqueConstraintError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Client with this email or client number already exists',
+          error: createError.message
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create client',
+        error: process.env.NODE_ENV === 'development' ? createError.message : 'Internal server error'
+      });
     }
 
     // Automatically create a borrower user for this client
@@ -527,6 +614,45 @@ router.get('/:id/savings', authenticate, async (req, res) => {
       success: false,
       message: 'Failed to fetch client savings',
       error: error.message
+    });
+  }
+});
+
+// Delete all clients (admin only - use with caution!)
+router.delete('/all', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { confirm } = req.body;
+    
+    if (confirm !== 'DELETE_ALL_CLIENTS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Confirmation required. Send { confirm: "DELETE_ALL_CLIENTS" } in request body.'
+      });
+    }
+
+    // Get all clients first to get their IDs
+    const allClients = await db.Client.findAll({
+      attributes: ['id'],
+      paranoid: false
+    });
+
+    // Delete all clients (soft delete)
+    const deletedCount = await db.Client.destroy({
+      where: {},
+      force: false // Soft delete
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${deletedCount} client(s)`,
+      deletedCount
+    });
+  } catch (error) {
+    console.error('Delete all clients error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete all clients',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
