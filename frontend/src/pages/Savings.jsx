@@ -104,7 +104,9 @@ const Savings = () => {
       setShowDepositModal(false);
       setDepositData({ amount: '', description: '' });
       setReceipt(response.data.data.receipt);
-      fetchSavings(); // Real-time update
+      // Immediately refresh savings and clients
+      await fetchSavings();
+      await fetchClients();
     } catch (error) {
       console.error('Failed to process deposit:', error);
       toast.error(error.response?.data?.message || 'Failed to process deposit');
@@ -156,7 +158,9 @@ const Savings = () => {
     try {
       await apiClient.delete(`/api/savings/${accountId}`);
       toast.success('Savings account deleted successfully');
-      fetchSavings();
+      // Immediately refresh both savings and clients
+      await fetchSavings();
+      await fetchClients();
     } catch (error) {
       console.error('Failed to delete savings account:', error);
       toast.error(error.response?.data?.message || 'Failed to delete savings account');
