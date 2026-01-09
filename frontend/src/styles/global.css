@@ -176,6 +176,13 @@ body {
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: -ms-autohiding-scrollbar;
+  position: relative;
+}
+
+/* Ensure tables have minimum width for horizontal scrolling */
+.table-responsive > .table {
+  min-width: 800px;
+  width: 100%;
 }
 
 .table-responsive > .table {

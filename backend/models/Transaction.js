@@ -80,7 +80,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'transactions',
-    timestamps: true
+    timestamps: true,
+    paranoid: true, // Enable soft deletes
+    deletedAt: 'deleted_at'
   });
 
   return Transaction;

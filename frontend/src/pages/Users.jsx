@@ -368,8 +368,8 @@ const Users = () => {
               </div>
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
+            <div className="table-responsive" style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="table table-hover mb-0" style={{ minWidth: '800px', width: '100%' }}>
                 <thead>
                   <tr>
                     <th>Name</th>

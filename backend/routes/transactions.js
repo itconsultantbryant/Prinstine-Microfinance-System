@@ -252,7 +252,8 @@ router.get('/:id', async (req, res) => {
 // Update transaction
 router.put('/:id', [
   body('amount').optional().isFloat({ min: 0.01 }),
-  body('type').optional().isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back'])
+  body('type').optional().isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest', 'due_payment']),
+  body('currency').optional().isIn(['LRD', 'USD'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

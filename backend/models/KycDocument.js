@@ -49,7 +49,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'kyc_documents',
-    timestamps: true
+    timestamps: true,
+    paranoid: true, // Enable soft deletes
+    deletedAt: 'deleted_at'
   });
 
   return KycDocument;

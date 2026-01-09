@@ -10,6 +10,9 @@ const Transactions = () => {
   const [savingsAccounts, setSavingsAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [formData, setFormData] = useState({
     client_id: '',
@@ -223,11 +226,12 @@ const Transactions = () => {
                     <th>Transaction Number</th>
                     <th>Type</th>
                     <th>Amount</th>
+                    <th>Currency</th>
                     <th>Client</th>
                     <th>Loan</th>
                     <th>Date</th>
                     <th>Status</th>
-                    <th>Receipt</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,24 +253,48 @@ const Transactions = () => {
                             {transaction.status}
                           </span>
                         </td>
+                        <td>{transaction.currency || 'USD'}</td>
                         <td>
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => {
-                              setReceipt({
-                                transaction_number: transaction.transaction_number,
-                                client_name: transaction.client ? `${transaction.client.first_name} ${transaction.client.last_name}` : '',
-                                amount: transaction.amount,
-                                currency: transaction.currency || 'USD',
-                                date: transaction.transaction_date,
-                                type: transaction.type,
-                                description: transaction.description
-                              });
-                            }}
-                            title="View Receipt"
-                          >
-                            <i className="fas fa-receipt"></i>
-                          </button>
+                          <div className="btn-group">
+                            <button
+                              className="btn btn-sm btn-outline-info"
+                              onClick={() => handleView(transaction.id)}
+                              title="View"
+                            >
+                              <i className="fas fa-eye"></i>
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => handleEdit(transaction.id)}
+                              title="Edit"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => handleDelete(transaction.id)}
+                              title="Delete"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => {
+                                setReceipt({
+                                  transaction_number: transaction.transaction_number,
+                                  client_name: transaction.client ? `${transaction.client.first_name} ${transaction.client.last_name}` : '',
+                                  amount: transaction.amount,
+                                  currency: transaction.currency || 'USD',
+                                  date: transaction.transaction_date,
+                                  type: transaction.type,
+                                  description: transaction.description
+                                });
+                              }}
+                              title="View Receipt"
+                            >
+                              <i className="fas fa-receipt"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -430,6 +458,293 @@ const Transactions = () => {
           onDownload={() => toast.success('Receipt downloaded!')}
         />
       )}
+
+      {/* View Transaction Modal */}
+      {showViewModal && selectedTransaction && (
+        <div 
+          className="modal fade show" 
+          style={{ display: 'block', zIndex: 1050 }} 
+          tabIndex="-1"
+          onClick={(e) => {
+            if (e.target.classList.contains('modal')) {
+              setShowViewModal(false);
+              setSelectedTransaction(null);
+            }
+          }}
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="fas fa-eye me-2"></i>Transaction Details
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedTransaction(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Transaction Number</label>
+                    <p className="form-control-plaintext"><strong>{selectedTransaction.transaction_number}</strong></p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Type</label>
+                    <p className="form-control-plaintext">
+                      <span className={`badge bg-${getTypeBadge(selectedTransaction.type)}`}>
+                        {selectedTransaction.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Amount</label>
+                    <p className="form-control-plaintext">
+                      {selectedTransaction.currency === 'LRD' ? 'LRD' : '$'}{parseFloat(selectedTransaction.amount || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Currency</label>
+                    <p className="form-control-plaintext">{selectedTransaction.currency || 'USD'}</p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Client</label>
+                    <p className="form-control-plaintext">
+                      {selectedTransaction.client ? `${selectedTransaction.client.first_name} ${selectedTransaction.client.last_name}` : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Loan</label>
+                    <p className="form-control-plaintext">
+                      {selectedTransaction.loan ? selectedTransaction.loan.loan_number : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Status</label>
+                    <p className="form-control-plaintext">
+                      <span className={`badge bg-${selectedTransaction.status === 'completed' ? 'success' : 'warning'}`}>
+                        {selectedTransaction.status}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold text-muted">Transaction Date</label>
+                    <p className="form-control-plaintext">
+                      {new Date(selectedTransaction.transaction_date).toLocaleString()}
+                    </p>
+                  </div>
+                  {selectedTransaction.description && (
+                    <div className="col-12 mb-3">
+                      <label className="form-label fw-bold text-muted">Description</label>
+                      <p className="form-control-plaintext">{selectedTransaction.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedTransaction(null);
+                  }}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    handleEdit(selectedTransaction.id);
+                  }}
+                >
+                  <i className="fas fa-edit me-2"></i>Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal */}
+      {showEditModal && selectedTransaction && (
+        <div 
+          className="modal fade show" 
+          style={{ display: 'block', zIndex: 1050 }} 
+          tabIndex="-1"
+          onClick={(e) => {
+            if (e.target.classList.contains('modal')) {
+              setShowEditModal(false);
+              setSelectedTransaction(null);
+            }
+          }}
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="fas fa-edit me-2"></i>Edit Transaction
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedTransaction(null);
+                  }}
+                ></button>
+              </div>
+              <form onSubmit={handleEditSubmit}>
+                <div className="modal-body">
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Client <span className="text-danger">*</span></label>
+                      <select
+                        className="form-select"
+                        name="client_id"
+                        value={formData.client_id}
+                        onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Client</option>
+                        {clients.map(client => (
+                          <option key={client.id} value={client.id}>
+                            {client.first_name} {client.last_name} ({client.client_number})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Transaction Type <span className="text-danger">*</span></label>
+                      <select
+                        className="form-select"
+                        name="type"
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        required
+                      >
+                        <option value="deposit">Deposit</option>
+                        <option value="withdrawal">Withdrawal</option>
+                        <option value="loan_payment">Loan Payment</option>
+                        <option value="loan_disbursement">Loan Disbursement</option>
+                        <option value="fee">Fee</option>
+                        <option value="interest">Interest</option>
+                        <option value="penalty">Penalty</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="push_back">Push Back</option>
+                        <option value="personal_interest_payment">Personal Interest Payment</option>
+                        <option value="general_interest">General Interest</option>
+                        <option value="due_payment">Due Payment</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Amount <span className="text-danger">*</span></label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Currency <span className="text-danger">*</span></label>
+                      <select
+                        className="form-select"
+                        name="currency"
+                        value={formData.currency}
+                        onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        required
+                      >
+                        <option value="USD">USD</option>
+                        <option value="LRD">LRD</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Loan (Optional)</label>
+                      <select
+                        className="form-select"
+                        name="loan_id"
+                        value={formData.loan_id}
+                        onChange={(e) => setFormData({ ...formData, loan_id: e.target.value })}
+                      >
+                        <option value="">Select Loan</option>
+                        {loans.map(loan => (
+                          <option key={loan.id} value={loan.id}>
+                            {loan.loan_number} - {loan.client?.first_name} {loan.client?.last_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Savings Account (Optional)</label>
+                      <select
+                        className="form-select"
+                        name="savings_account_id"
+                        value={formData.savings_account_id}
+                        onChange={(e) => setFormData({ ...formData, savings_account_id: e.target.value })}
+                      >
+                        <option value="">Select Savings Account</option>
+                        {savingsAccounts.map(account => (
+                          <option key={account.id} value={account.id}>
+                            {account.account_number} - {account.client?.first_name} {account.client?.last_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Transaction Date</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        name="transaction_date"
+                        value={formData.transaction_date}
+                        onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-12 mb-3">
+                      <label className="form-label">Description</label>
+                      <textarea
+                        className="form-control"
+                        name="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setSelectedTransaction(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    <i className="fas fa-save me-2"></i>Update Transaction
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Backdrop */}
+      {(showModal || showViewModal || showEditModal) && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 };
