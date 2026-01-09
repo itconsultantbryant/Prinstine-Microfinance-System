@@ -215,103 +215,104 @@ const Transactions = () => {
                 </div>
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div className="modal-body" style={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0 }}>
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Client <span className="text-danger">*</span></label>
-                      <select
-                        className="form-select"
-                        value={formData.client_id}
-                        onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                        required
-                      >
-                        <option value="">Select Client</option>
-                        {clients.map((client) => (
-                          <option key={client.id} value={client.id}>
-                            {client.first_name} {client.last_name} - {client.client_number}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Transaction Type <span className="text-danger">*</span></label>
-                      <select
-                        className="form-select"
-                        value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                        required
-                      >
-                        <option value="deposit">Deposit</option>
-                        <option value="withdrawal">Withdrawal</option>
-                        <option value="loan_payment">Loan Payment</option>
-                        <option value="loan_disbursement">Loan Disbursement</option>
-                        <option value="fee">Fee</option>
-                        <option value="interest">Interest</option>
-                        <option value="penalty">Penalty</option>
-                        <option value="transfer">Transfer</option>
-                        <option value="push_back">Push Back</option>
-                        <option value="personal_interest_payment">Personal Interest Payment</option>
-                        <option value="general_interest">General Interest</option>
-                        <option value="due_payment">Due Payment</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Amount <span className="text-danger">*</span></label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={formData.amount}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        min="0.01"
-                        step="0.01"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Transaction Date</label>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={formData.transaction_date}
-                        onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
-                      />
-                    </div>
-                    {formData.type === 'loan_payment' && (
+                    <div className="row">
                       <div className="col-md-6 mb-3">
-                        <label className="form-label">Loan</label>
+                        <label className="form-label">Client <span className="text-danger">*</span></label>
                         <select
                           className="form-select"
-                          value={formData.loan_id}
-                          onChange={(e) => setFormData({ ...formData, loan_id: e.target.value })}
+                          value={formData.client_id}
+                          onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                          required
                         >
-                          <option value="">Select Loan</option>
-                          {loans.filter(l => l.client_id === parseInt(formData.client_id)).map((loan) => (
-                            <option key={loan.id} value={loan.id}>
-                              {loan.loan_number} - ${parseFloat(loan.amount || 0).toLocaleString()}
+                          <option value="">Select Client</option>
+                          {clients.map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.first_name} {client.last_name} - {client.client_number}
                             </option>
                           ))}
                         </select>
                       </div>
-                    )}
-                    <div className="col-md-12 mb-3">
-                      <label className="form-label">Description</label>
-                      <textarea
-                        className="form-control"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        rows="3"
-                      />
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Transaction Type <span className="text-danger">*</span></label>
+                        <select
+                          className="form-select"
+                          value={formData.type}
+                          onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                          required
+                        >
+                          <option value="deposit">Deposit</option>
+                          <option value="withdrawal">Withdrawal</option>
+                          <option value="loan_payment">Loan Payment</option>
+                          <option value="loan_disbursement">Loan Disbursement</option>
+                          <option value="fee">Fee</option>
+                          <option value="interest">Interest</option>
+                          <option value="penalty">Penalty</option>
+                          <option value="transfer">Transfer</option>
+                          <option value="push_back">Push Back</option>
+                          <option value="personal_interest_payment">Personal Interest Payment</option>
+                          <option value="general_interest">General Interest</option>
+                          <option value="due_payment">Due Payment</option>
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Amount <span className="text-danger">*</span></label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={formData.amount}
+                          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                          min="0.01"
+                          step="0.01"
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Transaction Date</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={formData.transaction_date}
+                          onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+                        />
+                      </div>
+                      {formData.type === 'loan_payment' && (
+                        <div className="col-md-6 mb-3">
+                          <label className="form-label">Loan</label>
+                          <select
+                            className="form-select"
+                            value={formData.loan_id}
+                            onChange={(e) => setFormData({ ...formData, loan_id: e.target.value })}
+                          >
+                            <option value="">Select Loan</option>
+                            {loans.filter(l => l.client_id === parseInt(formData.client_id)).map((loan) => (
+                              <option key={loan.id} value={loan.id}>
+                                {loan.loan_number} - ${parseFloat(loan.amount || 0).toLocaleString()}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="col-md-12 mb-3">
+                        <label className="form-label">Description</label>
+                        <textarea
+                          className="form-control"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          rows="3"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid #e2e8f0' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    <i className="fas fa-save me-2"></i>Create Transaction
-                  </button>
-                </div>
-              </form>
+                  <div className="modal-footer" style={{ flexShrink: 0, borderTop: '1px solid #e2e8f0' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      <i className="fas fa-save me-2"></i>Create Transaction
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
           <div className="modal-backdrop fade show" onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1040 }}></div>
