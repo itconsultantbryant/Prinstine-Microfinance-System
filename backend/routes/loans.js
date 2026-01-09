@@ -107,6 +107,7 @@ router.get('/:id', authenticate, async (req, res) => {
           as: 'repayments', 
           required: false,
           attributes: ['id', 'repayment_number', 'installment_number', 'amount', 'principal_amount', 'interest_amount', 'penalty_amount', 'due_date', 'payment_date', 'status', 'payment_method'],
+          separate: true, // Fetch repayments in a separate query to allow proper ordering
           order: [['installment_number', 'ASC']]
         }
       ]
@@ -127,6 +128,11 @@ router.get('/:id', authenticate, async (req, res) => {
         console.error('Error parsing repayment schedule:', e);
         loan.repayment_schedule = [];
       }
+    }
+
+    // Ensure repayments are sorted by installment number
+    if (loan.repayments && loan.repayments.length > 0) {
+      loan.repayments.sort((a, b) => (a.installment_number || 0) - (b.installment_number || 0));
     }
 
     res.json({
