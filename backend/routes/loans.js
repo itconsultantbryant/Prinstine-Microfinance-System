@@ -446,45 +446,66 @@ router.post('/', authenticate, [
     console.error('Create loan error:', error);
     console.error('Error stack:', error.stack);
     console.error('Error name:', error.name);
-    console.error('Error details:', JSON.stringify(error, null, 2));
+    console.error('Error message:', error.message);
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     
     // Check for specific error types
-    let errorMessage = 'Internal server error';
+    let errorMessage = 'Failed to create loan. Please try again or contact support.';
     let statusCode = 500;
+    let errorDetails = {};
     
     if (error.name === 'SequelizeDatabaseError') {
       // Database constraint errors (like ENUM value not found)
-      if (error.message.includes('enum') || error.message.includes('loan_type')) {
-        errorMessage = 'Invalid loan type. Please ensure the database has been migrated.';
+      if (error.message && (error.message.includes('enum') || error.message.includes('loan_type'))) {
+        errorMessage = 'Invalid loan type selected. Please ensure the database has been migrated or select a different loan type.';
         console.error('ENUM error detected - database may need migration');
+      } else if (error.message && error.message.includes('null value')) {
+        errorMessage = 'Required field is missing. Please check all required fields are filled.';
+        statusCode = 400;
       } else {
-        errorMessage = error.message;
+        errorMessage = error.message || 'Database error occurred. Please try again.';
       }
     } else if (error.name === 'SequelizeValidationError') {
-      errorMessage = 'Validation failed: ' + error.errors.map(e => e.message).join(', ');
+      const validationMessages = error.errors 
+        ? error.errors.map(e => `${e.path || 'Field'}: ${e.message}`).join(', ')
+        : 'Validation failed';
+      errorMessage = `Validation failed: ${validationMessages}`;
       statusCode = 400;
+      errorDetails.validationErrors = error.errors;
     } else if (error.name === 'SequelizeUniqueConstraintError') {
-      errorMessage = 'Loan number already exists';
+      errorMessage = 'A loan with this number already exists. Please try again.';
       statusCode = 400;
-    } else if (process.env.NODE_ENV === 'development') {
+    } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+      errorMessage = 'Invalid reference (client, branch, or collateral not found). Please check your selections.';
+      statusCode = 400;
+    } else if (error.message) {
       errorMessage = error.message;
-      if (error.errors) {
-        errorMessage += ' - ' + JSON.stringify(error.errors);
+      if (error.message.includes('Cannot read property') || error.message.includes('undefined')) {
+        errorMessage = 'An unexpected error occurred. Please check all fields are properly filled.';
       }
     }
     
-    res.status(statusCode).json({
+    // Ensure error message is meaningful
+    if (!errorMessage || errorMessage.length < 10) {
+      errorMessage = 'Failed to create loan. Please check all required fields and try again.';
+    }
+    
+    const response = {
       success: false,
-      message: 'Failed to create loan',
-      error: errorMessage,
-      ...(process.env.NODE_ENV === 'development' && { 
-        details: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
-      })
-    });
+      message: errorMessage,
+      error: errorMessage
+    };
+    
+    // Add detailed error info in development
+    if (process.env.NODE_ENV === 'development') {
+      response.details = {
+        name: error.name,
+        message: error.message,
+        ...errorDetails
+      };
+    }
+    
+    res.status(statusCode).json(response);
   }
 });
 
@@ -1135,3 +1156,4 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
 });
 
 module.exports = router;
+
