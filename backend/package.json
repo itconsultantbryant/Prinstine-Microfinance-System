@@ -9,6 +9,7 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "clear": "node scripts/clear-all-data.js",
+    "cleanup-duplicates": "node scripts/cleanup-duplicate-loans.js",
     "postinstall": "npm run migrate",
     "build-frontend": "cd ../frontend && npm install && npm run build",
     "test": "jest"
