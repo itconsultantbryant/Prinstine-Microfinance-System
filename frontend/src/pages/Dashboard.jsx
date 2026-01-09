@@ -102,11 +102,44 @@ const Dashboard = () => {
     overdueLoans: 0,
     totalTransactions: 0,
     portfolioValue: 0,
-    totalCollections: 0
+    totalCollections: 0,
+    lrd: {
+      totalSavings: 0,
+      totalLoans: 0,
+      outstandingLoans: 0,
+      portfolioValue: 0,
+      totalCollections: 0,
+      totalDues: 0,
+      outstandingDues: 0,
+      monthlyDues: 0,
+      clientsWithOutstandingDues: 0,
+      clientsPaidDues: 0,
+      totalFines: 0,
+      outstandingSavings: 0
+    },
+    usd: {
+      totalSavings: 0,
+      totalLoans: 0,
+      outstandingLoans: 0,
+      portfolioValue: 0,
+      totalCollections: 0,
+      totalDues: 0,
+      outstandingDues: 0,
+      monthlyDues: 0,
+      clientsWithOutstandingDues: 0,
+      clientsPaidDues: 0,
+      totalFines: 0,
+      outstandingSavings: 0
+    },
+    totalLoans: 0,
+    totalOutstandingLoans: 0,
+    totalOutstandingSavings: 0
   };
   const recentLoans = stats?.recentLoans || [];
   const recentTransactions = stats?.recentTransactions || [];
-  const clientsWithDues = stats?.clientsWithDues || [];
+  const clientsWithDues = stats?.clientsWithDues?.all || stats?.clientsWithDues || [];
+  const clientsWithDuesLRD = stats?.clientsWithDues?.lrd || [];
+  const clientsWithDuesUSD = stats?.clientsWithDues?.usd || [];
 
   // Chart data for portfolio trend - using real historical data
   const portfolioData = historicalData ? {
@@ -218,26 +251,59 @@ const Dashboard = () => {
 
       {/* Role-based Statistics Cards */}
       <div className="row mb-4">
-        {/* For Borrower role - show only their data */}
+        {/* For Borrower role - show their data in both LRD and USD */}
         {user?.role === ROLES.BORROWER ? (
           <>
+            {/* LRD Summary for Borrower */}
+            <div className="col-12 mb-3">
+              <h5 className="text-primary"><i className="fas fa-coins me-2"></i>LRD Summary</h5>
+            </div>
             <StatCard
               icon="fas fa-hand-holding-usd"
-              title="My Active Loans"
-              value={statistics.activeLoans || 0}
+              title="My Active Loans (LRD)"
+              value={statistics.lrd?.outstandingLoans ? `LRD ${statistics.lrd.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
               color="success"
             />
             <StatCard
               icon="fas fa-piggy-bank"
-              title="My Savings Balance"
-              value={statistics.totalSavings || 0}
+              title="My Savings Balance (LRD)"
+              value={statistics.lrd?.totalSavings ? `LRD ${statistics.lrd.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
               color="info"
             />
             <StatCard
+              icon="fas fa-calendar-check"
+              title="Outstanding Dues (LRD)"
+              value={statistics.lrd?.outstandingDues ? `LRD ${statistics.lrd.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'LRD 0.00'}
+              color="warning"
+            />
+            <StatCard
               icon="fas fa-exclamation-triangle"
-              title="Overdue Loans"
+              title="Overdue Loans (LRD)"
               value={statistics.overdueLoans || 0}
               color="danger"
+            />
+            
+            {/* USD Summary for Borrower */}
+            <div className="col-12 mb-3 mt-3">
+              <h5 className="text-success"><i className="fas fa-dollar-sign me-2"></i>USD Summary</h5>
+            </div>
+            <StatCard
+              icon="fas fa-hand-holding-usd"
+              title="My Active Loans (USD)"
+              value={statistics.usd?.outstandingLoans ? `$${statistics.usd.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+              color="success"
+            />
+            <StatCard
+              icon="fas fa-piggy-bank"
+              title="My Savings Balance (USD)"
+              value={statistics.usd?.totalSavings ? `$${statistics.usd.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+              color="info"
+            />
+            <StatCard
+              icon="fas fa-calendar-check"
+              title="Outstanding Dues (USD)"
+              value={statistics.usd?.outstandingDues ? `$${statistics.usd.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+              color="warning"
             />
             {realtimeData && (
               <StatCard
@@ -440,7 +506,11 @@ const Dashboard = () => {
                           <td>
                             {loan.client?.first_name} {loan.client?.last_name}
                           </td>
-                          <td>${parseFloat(loan.amount).toLocaleString()}</td>
+                          <td>
+                            {loan.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <small className="text-muted ms-1">({loan.currency || 'USD'})</small>
+                          </td>
                           <td>
                             <span className={`badge bg-${
                               loan.status === 'active' ? 'success' :
@@ -492,7 +562,11 @@ const Dashboard = () => {
                           <td>
                             {transaction.client?.first_name} {transaction.client?.last_name}
                           </td>
-                          <td>${parseFloat(transaction.amount).toLocaleString()}</td>
+                          <td>
+                            {transaction.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <small className="text-muted ms-1">({transaction.currency || 'USD'})</small>
+                          </td>
                           <td>
                             {new Date(transaction.transaction_date).toLocaleDateString()}
                           </td>
@@ -513,48 +587,257 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Clients with Dues (Admin/Finance only) */}
-      {(user?.role === ROLES.ADMIN || user?.role === ROLES.FINANCE || user?.role === 'general_manager') && clientsWithDues.length > 0 && (
-        <div className="card mb-4">
-          <div className="card-header bg-danger text-white">
-            <h5 className="mb-0">
-              <i className="fas fa-calendar-check me-2"></i>Clients with Outstanding Dues
-            </h5>
-          </div>
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
-                <thead>
-                  <tr>
-                    <th>Client Number</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Outstanding Dues</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientsWithDues.map((client) => (
-                    <tr key={client.id}>
-                      <td><strong>{client.client_number}</strong></td>
-                      <td>{client.first_name} {client.last_name}</td>
-                      <td>{client.email}</td>
-                      <td>
-                        <strong className="text-danger">
-                          ${Math.abs(parseFloat(client.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </strong>
-                      </td>
-                      <td>
-                        <Link to={`/dues`} className="btn btn-sm btn-outline-primary">
-                          <i className="fas fa-money-bill-wave me-1"></i>Manage
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* Currency-Separated Financial Metrics (Admin/Head/Supervisor/Finance) */}
+      {(user?.role === ROLES.ADMIN || user?.role === ROLES.HEAD_MICRO_LOAN || user?.role === ROLES.SUPERVISOR || user?.role === ROLES.FINANCE || user?.role === 'general_manager') && (
+        <>
+          {/* LRD Financial Metrics */}
+          <div className="card mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-coins me-2"></i>LRD Financial Metrics
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <div className="card bg-info text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Savings (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-success text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Loans (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.totalLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-warning text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Outstanding Loans (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-danger text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Outstanding Dues (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-secondary text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Portfolio Value (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-primary text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Collections (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.totalCollections.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-dark text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Fines (LRD)</h6>
+                      <h3 className="card-title mb-0">LRD {statistics.lrd?.totalFines.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-info text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Clients with Dues (LRD)</h6>
+                      <h3 className="card-title mb-0">{statistics.lrd?.clientsWithOutstandingDues || 0}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* USD Financial Metrics */}
+          <div className="card mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">
+                <i className="fas fa-dollar-sign me-2"></i>USD Financial Metrics
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <div className="card bg-info text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Savings (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-success text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Loans (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.totalLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-warning text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Outstanding Loans (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.outstandingLoans.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-danger text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Outstanding Dues (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-secondary text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Portfolio Value (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-primary text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Collections (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.totalCollections.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-dark text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Total Fines (USD)</h6>
+                      <h3 className="card-title mb-0">${statistics.usd?.totalFines.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</h3>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="card bg-info text-white">
+                    <div className="card-body">
+                      <h6 className="card-subtitle mb-2 text-white-50">Clients with Dues (USD)</h6>
+                      <h3 className="card-title mb-0">{statistics.usd?.clientsWithOutstandingDues || 0}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Clients with Dues - Currency Separated (Admin/Head/Supervisor/Finance) */}
+      {(user?.role === ROLES.ADMIN || user?.role === ROLES.HEAD_MICRO_LOAN || user?.role === ROLES.SUPERVISOR || user?.role === ROLES.FINANCE || user?.role === 'general_manager') && (clientsWithDuesLRD.length > 0 || clientsWithDuesUSD.length > 0) && (
+        <div className="row mb-4">
+          {/* LRD Clients with Dues */}
+          {clientsWithDuesLRD.length > 0 && (
+            <div className="col-md-6 mb-4">
+              <div className="card">
+                <div className="card-header bg-primary text-white">
+                  <h5 className="mb-0">
+                    <i className="fas fa-calendar-check me-2"></i>Clients with Outstanding Dues (LRD)
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Client Number</th>
+                          <th>Name</th>
+                          <th>Outstanding Dues</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientsWithDuesLRD.map((client) => (
+                          <tr key={client.id}>
+                            <td><strong>{client.client_number}</strong></td>
+                            <td>{client.first_name} {client.last_name}</td>
+                            <td>
+                              <strong className="text-danger">
+                                LRD {Math.abs(parseFloat(client.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </strong>
+                            </td>
+                            <td>
+                              <Link to={`/dues`} className="btn btn-sm btn-outline-primary">
+                                <i className="fas fa-money-bill-wave me-1"></i>Manage
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* USD Clients with Dues */}
+          {clientsWithDuesUSD.length > 0 && (
+            <div className="col-md-6 mb-4">
+              <div className="card">
+                <div className="card-header bg-success text-white">
+                  <h5 className="mb-0">
+                    <i className="fas fa-calendar-check me-2"></i>Clients with Outstanding Dues (USD)
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Client Number</th>
+                          <th>Name</th>
+                          <th>Outstanding Dues</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientsWithDuesUSD.map((client) => (
+                          <tr key={client.id}>
+                            <td><strong>{client.client_number}</strong></td>
+                            <td>{client.first_name} {client.last_name}</td>
+                            <td>
+                              <strong className="text-danger">
+                                ${Math.abs(parseFloat(client.total_dues || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </strong>
+                            </td>
+                            <td>
+                              <Link to={`/dues`} className="btn btn-sm btn-outline-primary">
+                                <i className="fas fa-money-bill-wave me-1"></i>Manage
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import apiClient from '../config/axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 const BorrowerReports = () => {
   const { user } = useAuth();
@@ -11,10 +12,46 @@ const BorrowerReports = () => {
     savings: [],
     transactions: [],
     loanPayments: [],
+    // Overall totals
     totalSavings: 0,
     totalPersonalInterest: 0,
     totalGeneralInterest: 0,
-    grandTotal: 0
+    grandTotal: 0,
+    // Currency-separated data
+    lrd: {
+      loans: [],
+      savings: [],
+      transactions: [],
+      loanPayments: [],
+      totalSavings: 0,
+      totalPersonalInterest: 0,
+      totalGeneralInterest: 0,
+      outstandingDues: 0,
+      outstandingLoans: 0,
+      grandTotal: 0,
+      overallTotalSavings: 0,
+      yearlyDues: 0,
+      monthlyDues: 0,
+      duesPayments: 0,
+      totalDues: 0
+    },
+    usd: {
+      loans: [],
+      savings: [],
+      transactions: [],
+      loanPayments: [],
+      totalSavings: 0,
+      totalPersonalInterest: 0,
+      totalGeneralInterest: 0,
+      outstandingDues: 0,
+      outstandingLoans: 0,
+      grandTotal: 0,
+      overallTotalSavings: 0,
+      yearlyDues: 0,
+      monthlyDues: 0,
+      duesPayments: 0,
+      totalDues: 0
+    }
   });
 
   useEffect(() => {
@@ -44,55 +81,147 @@ const BorrowerReports = () => {
         t.type === 'loan_payment' && t.loan_id
       );
 
-      // Calculate totals
-      const totalSavings = savings.reduce((sum, acc) => 
+      // Separate data by currency (LRD and USD)
+      const loansLRD = loans.filter(l => (l.currency || 'USD') === 'LRD');
+      const loansUSD = loans.filter(l => (l.currency || 'USD') === 'USD');
+      
+      const savingsLRD = savings.filter(s => (s.currency || 'USD') === 'LRD');
+      const savingsUSD = savings.filter(s => (s.currency || 'USD') === 'USD');
+      
+      const transactionsLRD = allTransactions.filter(t => (t.currency || 'USD') === 'LRD');
+      const transactionsUSD = allTransactions.filter(t => (t.currency || 'USD') === 'USD');
+      
+      const loanPaymentsLRD = loanPayments.filter(t => (t.currency || 'USD') === 'LRD');
+      const loanPaymentsUSD = loanPayments.filter(t => (t.currency || 'USD') === 'USD');
+
+      // Calculate LRD totals
+      const totalSavingsLRD = savingsLRD.reduce((sum, acc) => 
         sum + parseFloat(acc.balance || 0), 0
       );
 
-      const totalPersonalInterest = allTransactions
+      const totalPersonalInterestLRD = transactionsLRD
         .filter(t => t.type === 'personal_interest_payment')
         .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
-      const totalGeneralInterest = allTransactions
+      const totalGeneralInterestLRD = transactionsLRD
         .filter(t => t.type === 'general_interest')
         .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
-      // Calculate dues information
-      const totalDues = client ? parseFloat(client.total_dues || 0) : 0;
-      const outstandingDues = Math.abs(totalDues < 0 ? totalDues : 0); // Only negative values are outstanding
-      const yearlyDues = outstandingDues;
-      const monthlyDues = yearlyDues / 12;
-      const duesPayments = allTransactions
-        .filter(t => t.type === 'due_payment')
+      // Calculate USD totals
+      const totalSavingsUSD = savingsUSD.reduce((sum, acc) => 
+        sum + parseFloat(acc.balance || 0), 0
+      );
+
+      const totalPersonalInterestUSD = transactionsUSD
+        .filter(t => t.type === 'personal_interest_payment')
         .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
-      // Calculate outstanding loans
-      const outstandingLoans = loans.reduce((sum, loan) => 
+      const totalGeneralInterestUSD = transactionsUSD
+        .filter(t => t.type === 'general_interest')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+      // Calculate dues information - separated by currency
+      const totalDues = client ? parseFloat(client.total_dues || 0) : 0;
+      const duesCurrency = client?.dues_currency || 'USD';
+      
+      // Calculate outstanding loans by currency
+      const outstandingLoansLRD = loansLRD.reduce((sum, loan) => 
+        sum + parseFloat(loan.outstanding_balance || 0), 0
+      );
+      
+      const outstandingLoansUSD = loansUSD.reduce((sum, loan) => 
         sum + parseFloat(loan.outstanding_balance || 0), 0
       );
 
-      // Grand Total = Total Savings + Personal Interest + General Interest - Outstanding Dues
-      const grandTotal = totalSavings + totalPersonalInterest + totalGeneralInterest - outstandingDues;
+      // Dues are per client (client can only have one currency for dues)
+      const outstandingDuesLRD = (duesCurrency === 'LRD' && totalDues < 0) ? Math.abs(totalDues) : 0;
+      const outstandingDuesUSD = (duesCurrency === 'USD' && totalDues < 0) ? Math.abs(totalDues) : 0;
+      const yearlyDuesLRD = outstandingDuesLRD;
+      const yearlyDuesUSD = outstandingDuesUSD;
+      const monthlyDuesLRD = yearlyDuesLRD / 12;
+      const monthlyDuesUSD = yearlyDuesUSD / 12;
       
-      // Overall Total Savings = Grand Total - Outstanding Loans
-      const overallTotalSavings = grandTotal - outstandingLoans;
+      const duesPaymentsLRD = transactionsLRD
+        .filter(t => t.type === 'due_payment')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      
+      const duesPaymentsUSD = transactionsUSD
+        .filter(t => t.type === 'due_payment')
+        .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+      // Grand Total (LRD) = Total Savings + Personal Interest + General Interest - Outstanding Dues
+      const grandTotalLRD = totalSavingsLRD + totalPersonalInterestLRD + totalGeneralInterestLRD - outstandingDuesLRD;
+      
+      // Overall Total Savings (LRD) = Grand Total - Outstanding Loans
+      const overallTotalSavingsLRD = grandTotalLRD - outstandingLoansLRD;
+
+      // Grand Total (USD) = Total Savings + Personal Interest + General Interest - Outstanding Dues
+      const grandTotalUSD = totalSavingsUSD + totalPersonalInterestUSD + totalGeneralInterestUSD - outstandingDuesUSD;
+      
+      // Overall Total Savings (USD) = Grand Total - Outstanding Loans
+      const overallTotalSavingsUSD = grandTotalUSD - outstandingLoansUSD;
+
+      // Overall totals (for backward compatibility)
+      const totalSavings = totalSavingsLRD + totalSavingsUSD;
+      const totalPersonalInterest = totalPersonalInterestLRD + totalPersonalInterestUSD;
+      const totalGeneralInterest = totalGeneralInterestLRD + totalGeneralInterestUSD;
+      const outstandingDues = outstandingDuesLRD + outstandingDuesUSD;
+      const outstandingLoans = outstandingLoansLRD + outstandingLoansUSD;
+      const grandTotal = grandTotalLRD + grandTotalUSD;
+      const overallTotalSavings = overallTotalSavingsLRD + overallTotalSavingsUSD;
 
       setReportData({
         loans,
         savings,
         transactions: allTransactions,
         loanPayments,
+        // Overall totals
         totalSavings,
         totalPersonalInterest,
         totalGeneralInterest,
         grandTotal,
         overallTotalSavings,
-        outstandingDues: outstandingDues,
-        outstandingLoans: outstandingLoans,
-        totalDues: totalDues,
-        yearlyDues: yearlyDues,
-        monthlyDues: monthlyDues,
-        duesPayments: duesPayments
+        outstandingDues,
+        outstandingLoans,
+        totalDues,
+        yearlyDues: outstandingDues,
+        monthlyDues: outstandingDues / 12,
+        duesPayments: duesPaymentsLRD + duesPaymentsUSD,
+        // Currency-separated data
+        lrd: {
+          loans: loansLRD,
+          savings: savingsLRD,
+          transactions: transactionsLRD,
+          loanPayments: loanPaymentsLRD,
+          totalSavings: totalSavingsLRD,
+          totalPersonalInterest: totalPersonalInterestLRD,
+          totalGeneralInterest: totalGeneralInterestLRD,
+          outstandingDues: outstandingDuesLRD,
+          outstandingLoans: outstandingLoansLRD,
+          grandTotal: grandTotalLRD,
+          overallTotalSavings: overallTotalSavingsLRD,
+          yearlyDues: yearlyDuesLRD,
+          monthlyDues: monthlyDuesLRD,
+          duesPayments: duesPaymentsLRD,
+          totalDues: duesCurrency === 'LRD' ? totalDues : 0
+        },
+        usd: {
+          loans: loansUSD,
+          savings: savingsUSD,
+          transactions: transactionsUSD,
+          loanPayments: loanPaymentsUSD,
+          totalSavings: totalSavingsUSD,
+          totalPersonalInterest: totalPersonalInterestUSD,
+          totalGeneralInterest: totalGeneralInterestUSD,
+          outstandingDues: outstandingDuesUSD,
+          outstandingLoans: outstandingLoansUSD,
+          grandTotal: grandTotalUSD,
+          overallTotalSavings: overallTotalSavingsUSD,
+          yearlyDues: yearlyDuesUSD,
+          monthlyDues: monthlyDuesUSD,
+          duesPayments: duesPaymentsUSD,
+          totalDues: duesCurrency === 'USD' ? totalDues : 0
+        }
       });
       setLoading(false);
     } catch (error) {
@@ -119,101 +248,209 @@ const BorrowerReports = () => {
         <p className="text-muted">View your financial summary and transaction history</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-3">
-          <div className="card bg-primary text-white">
-            <div className="card-body">
-              <h6 className="card-subtitle mb-2 text-white-50">Savings</h6>
-              <h3 className="card-title mb-0">
-                ${reportData.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
+      {/* LRD Section */}
+      <div className="card mb-4">
+        <div className="card-header bg-primary text-white">
+          <h5 className="mb-0"><i className="fas fa-coins me-2"></i>LRD Financial Summary</h5>
+        </div>
+        <div className="card-body">
+          {/* Row 1: Total Savings, Personal Interest, General Interest, Outstanding Dues, Yearly Dues, Monthly Dues */}
+          <div className="row g-3 mb-3">
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-primary text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Total Savings (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-success text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Personal Interest (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-info text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">General Interest (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-danger text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Dues (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-secondary text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Yearly Dues (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.yearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-info text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Monthly Dues (LRD)</h6>
+                  <h5 className="card-title mb-0">
+                    LRD {reportData.lrd?.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-success text-white">
-            <div className="card-body">
-              <h6 className="card-subtitle mb-2 text-white-50">Personal Interest</h6>
-              <h3 className="card-title mb-0">
-                ${reportData.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
+          
+          {/* Row 2: Grand Total */}
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <div className="card bg-warning text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50">Grand Total (LRD)</h6>
+                  <h3 className="card-title mb-0">
+                    LRD {reportData.lrd?.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h3>
+                  <small className="text-white-50">Savings + Personal + General - Dues</small>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-info text-white">
-            <div className="card-body">
-              <h6 className="card-subtitle mb-2 text-white-50">General Interest</h6>
-              <h3 className="card-title mb-0">
-                ${reportData.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card bg-warning text-white">
-            <div className="card-body">
-              <h6 className="card-subtitle mb-2 text-white-50">Grand Total</h6>
-              <h3 className="card-title mb-0">
-                ${reportData.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-              <small className="text-white-50">Savings + Personal + General - Dues</small>
+          
+          {/* Row 3: Grand Total Savings (Take Home) - Below */}
+          <div className="row g-3">
+            <div className="col-md-12">
+              <div className="card bg-success text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings - Take Home (LRD)</h6>
+                  <h2 className="card-title mb-0">
+                    LRD {reportData.lrd?.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h2>
+                  <small className="text-white-50">Grand Total - Outstanding Loans</small>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grand Total Savings Card */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-12">
-          <div className="card bg-success text-white">
-            <div className="card-body text-center">
-              <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings</h6>
-              <h2 className="card-title mb-0">
-                ${reportData.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h2>
-              <small className="text-white-50">Grand Total - Outstanding Loans</small>
+      {/* USD Section */}
+      <div className="card mb-4">
+        <div className="card-header bg-success text-white">
+          <h5 className="mb-0"><i className="fas fa-dollar-sign me-2"></i>USD Financial Summary</h5>
+        </div>
+        <div className="card-body">
+          {/* Row 1: Total Savings, Personal Interest, General Interest, Outstanding Dues, Yearly Dues, Monthly Dues */}
+          <div className="row g-3 mb-3">
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-primary text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Total Savings (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-success text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Personal Interest (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.totalPersonalInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-info text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">General Interest (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.totalGeneralInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-danger text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Outstanding Dues (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.outstandingDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-secondary text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Yearly Dues (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.yearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4 col-lg-2">
+              <div className="card bg-info text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50 small">Monthly Dues (USD)</h6>
+                  <h5 className="card-title mb-0">
+                    ${reportData.usd?.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h5>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Row 2: Grand Total */}
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <div className="card bg-warning text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50">Grand Total (USD)</h6>
+                  <h3 className="card-title mb-0">
+                    ${reportData.usd?.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h3>
+                  <small className="text-white-50">Savings + Personal + General - Dues</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Row 3: Grand Total Savings (Take Home) - Below */}
+          <div className="row g-3">
+            <div className="col-md-12">
+              <div className="card bg-success text-white">
+                <div className="card-body text-center">
+                  <h6 className="card-subtitle mb-2 text-white-50">Grand Total Savings - Take Home (USD)</h6>
+                  <h2 className="card-title mb-0">
+                    ${reportData.usd?.overallTotalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </h2>
+                  <small className="text-white-50">Grand Total - Outstanding Loans</small>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Dues Information */}
-      {reportData.totalDues !== undefined && (
-        <div className="row g-3 mb-4">
-          <div className="col-md-4">
-            <div className="card bg-danger text-white">
-              <div className="card-body">
-                <h6 className="card-subtitle mb-2 text-white-50">Outstanding Dues</h6>
-                <h3 className="card-title mb-0">
-                  ${(reportData.outstandingDues || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card bg-secondary text-white">
-              <div className="card-body">
-                <h6 className="card-subtitle mb-2 text-white-50">Total Yearly Dues</h6>
-                <h3 className="card-title mb-0">
-                  ${reportData.yearlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card bg-info text-white">
-              <div className="card-body">
-                <h6 className="card-subtitle mb-2 text-white-50">Monthly Dues</h6>
-                <h3 className="card-title mb-0">
-                  ${reportData.monthlyDues.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Loans Summary */}
       <div className="card mb-4">
@@ -247,12 +484,27 @@ const BorrowerReports = () => {
                               {loan.loan_type ? loan.loan_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Personal'}
                             </span>
                           </td>
-                          <td>${parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>
+                            {loan.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(loan.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <small className="text-muted ms-1">({loan.currency || 'USD'})</small>
+                          </td>
                           <td>{loan.interest_rate || 0}%</td>
                           <td>{loan.term_months || 0} months</td>
-                          <td>${parseFloat(loan.monthly_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td><strong className="text-danger">${parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                          <td className="text-success">${parseFloat(loan.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td>
+                            {loan.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(loan.monthly_payment || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td>
+                            <strong className="text-danger">
+                              {loan.currency === 'LRD' ? 'LRD' : '$'}
+                              {parseFloat(loan.outstanding_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </strong>
+                          </td>
+                          <td className="text-success">
+                            {loan.currency === 'LRD' ? 'LRD' : '$'}
+                            {parseFloat(loan.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
                           <td>
                             <span className={`badge bg-${
                               loan.status === 'active' ? 'success' : 
@@ -273,13 +525,40 @@ const BorrowerReports = () => {
                 </tbody>
                 <tfoot>
                   <tr className="table-info">
-                    <th colSpan="2">Total</th>
-                    <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
+                    <th colSpan="2">Total (LRD)</th>
+                    <th>
+                      LRD {reportData.lrd?.loans.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
                     <th></th>
                     <th></th>
-                    <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.monthly_payment || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
-                    <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.outstanding_balance || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
-                    <th>${reportData.loans.reduce((sum, l) => sum + parseFloat(l.total_paid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
+                    <th>
+                      LRD {reportData.lrd?.loans.reduce((sum, l) => sum + parseFloat(l.monthly_payment || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th>
+                      LRD {reportData.lrd?.loans.reduce((sum, l) => sum + parseFloat(l.outstanding_balance || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th>
+                      LRD {reportData.lrd?.loans.reduce((sum, l) => sum + parseFloat(l.total_paid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th></th>
+                    <th></th>
+                  </tr>
+                  <tr className="table-success">
+                    <th colSpan="2">Total (USD)</th>
+                    <th>
+                      ${reportData.usd?.loans.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th></th>
+                    <th></th>
+                    <th>
+                      ${reportData.usd?.loans.reduce((sum, l) => sum + parseFloat(l.monthly_payment || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th>
+                      ${reportData.usd?.loans.reduce((sum, l) => sum + parseFloat(l.outstanding_balance || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th>
+                      ${reportData.usd?.loans.reduce((sum, l) => sum + parseFloat(l.total_paid || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
                     <th></th>
                     <th></th>
                   </tr>
@@ -317,7 +596,9 @@ const BorrowerReports = () => {
                       <td>{account.account_type || 'regular'}</td>
                       <td>
                         <strong className="text-success">
-                          ${parseFloat(account.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {account.currency === 'LRD' ? 'LRD' : '$'}
+                          {parseFloat(account.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <small className="text-muted ms-1">({account.currency || 'USD'})</small>
                         </strong>
                       </td>
                       <td>{account.interest_rate || 0}%</td>
@@ -330,9 +611,19 @@ const BorrowerReports = () => {
                   ))}
                 </tbody>
                 <tfoot>
+                  <tr className="table-primary">
+                    <th colSpan="2">Total Savings (LRD)</th>
+                    <th>
+                      LRD {reportData.lrd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th></th>
+                    <th></th>
+                  </tr>
                   <tr className="table-success">
-                    <th colSpan="2">Total Savings</th>
-                    <th>${reportData.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
+                    <th colSpan="2">Total Savings (USD)</th>
+                    <th>
+                      ${reportData.usd?.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
                     <th></th>
                     <th></th>
                   </tr>
@@ -385,7 +676,9 @@ const BorrowerReports = () => {
                           'text-primary'
                         }>
                           {transaction.type === 'deposit' || transaction.type === 'personal_interest_payment' || transaction.type === 'general_interest' ? '+' : '-'}
-                          ${parseFloat(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {transaction.currency === 'LRD' ? 'LRD' : '$'}
+                          {parseFloat(transaction.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <small className="text-muted ms-1">({transaction.currency || 'USD'})</small>
                         </strong>
                       </td>
                       <td>{transaction.description || 'N/A'}</td>
@@ -434,7 +727,9 @@ const BorrowerReports = () => {
                       </td>
                       <td>
                         <strong className="text-primary">
-                          ${parseFloat(payment.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {payment.currency === 'LRD' ? 'LRD' : '$'}
+                          {parseFloat(payment.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <small className="text-muted ms-1">({payment.currency || 'USD'})</small>
                         </strong>
                       </td>
                       <td>{payment.description || 'Loan payment'}</td>
@@ -449,8 +744,17 @@ const BorrowerReports = () => {
                 </tbody>
                 <tfoot>
                   <tr className="table-primary">
-                    <th colSpan="2">Total Loan Payments</th>
-                    <th>${reportData.loanPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</th>
+                    <th colSpan="2">Total Loan Payments (LRD)</th>
+                    <th>
+                      LRD {reportData.lrd?.loanPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
+                    <th colSpan="3"></th>
+                  </tr>
+                  <tr className="table-success">
+                    <th colSpan="2">Total Loan Payments (USD)</th>
+                    <th>
+                      ${reportData.usd?.loanPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </th>
                     <th colSpan="3"></th>
                   </tr>
                 </tfoot>
