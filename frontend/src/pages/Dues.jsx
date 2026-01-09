@@ -446,7 +446,7 @@ const Dues = () => {
                           <tr className="table-success">
                             <th>Total Paid</th>
                             <th>
-                              ${duesHistory.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {(selectedClient.dues_currency === 'LRD' ? 'LRD' : '$')}{duesHistory.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </th>
                             <th colSpan="3"></th>
                           </tr>
