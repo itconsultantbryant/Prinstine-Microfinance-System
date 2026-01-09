@@ -302,6 +302,12 @@ router.post('/', authenticate, [
     const interestMethod = req.body.interest_method || loanTypeConfig.interestMethod || 'declining_balance';
     const paymentFrequency = req.body.payment_frequency || 'monthly';
     const disbursementDate = req.body.disbursement_date || new Date().toISOString().split('T')[0];
+    
+    // Handle currency - default to USD if not provided or invalid
+    let currency = req.body.currency || 'USD';
+    if (!['LRD', 'USD'].includes(currency)) {
+      currency = 'USD'; // Default to USD if invalid
+    }
 
     // Handle different loan types
     // Personal and Excess: 10% interest on loan amount, no upfront
@@ -499,7 +505,8 @@ router.post('/', authenticate, [
         upfront_percentage: upfrontPercentage,
         upfront_amount: upfrontAmount,
         default_charges_percentage: defaultChargesPercentage,
-        default_charges_amount: defaultChargesAmount
+        default_charges_amount: defaultChargesAmount,
+        currency: currency // Currency for the loan (LRD or USD)
       };
 
       const loan = await db.Loan.create(loanData, { transaction });

@@ -162,6 +162,12 @@ module.exports = (sequelize) => {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: true,
       defaultValue: 0
+    },
+    currency: {
+      type: DataTypes.ENUM('LRD', 'USD'),
+      defaultValue: 'USD',
+      allowNull: false,
+      comment: 'Currency for the loan (LRD or USD)'
     }
   }, {
     tableName: 'loans',

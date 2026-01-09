@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const addTotalDuesColumn = require('./add-total-dues-column');
+const addCurrencyFields = require('./add-currency-fields');
 
 async function migrate() {
   try {
@@ -14,6 +15,14 @@ async function migrate() {
       await addTotalDuesColumn();
     } catch (duesMigrationError) {
       console.warn('⚠️  Total dues migration warning:', duesMigrationError.message);
+    }
+    
+    // Run currency fields migration
+    console.log('🔄 Running currency fields migration...');
+    try {
+      await addCurrencyFields();
+    } catch (currencyMigrationError) {
+      console.warn('⚠️  Currency fields migration warning:', currencyMigrationError.message);
     }
     
     // Run loan enhancement fields migration

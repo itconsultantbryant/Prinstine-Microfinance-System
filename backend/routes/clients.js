@@ -190,11 +190,17 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
 
     // Handle total_dues - if provided, set as negative
     let totalDues = 0;
+    let duesCurrency = req.body.dues_currency || 'USD';
     if (req.body.total_dues && req.body.total_dues !== '') {
       const duesAmount = parseFloat(req.body.total_dues);
       if (!isNaN(duesAmount) && duesAmount > 0) {
         totalDues = -Math.abs(duesAmount); // Set as negative
       }
+    }
+    
+    // Validate currency
+    if (duesCurrency && !['LRD', 'USD'].includes(duesCurrency)) {
+      duesCurrency = 'USD'; // Default to USD if invalid
     }
 
     // Create client
@@ -211,7 +217,8 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
         status: req.body.status || 'active',
         kyc_status: req.body.kyc_status || 'pending',
         profile_image: profileImagePath,
-        total_dues: totalDues
+        total_dues: totalDues,
+        dues_currency: duesCurrency
       });
       console.log('Client created successfully:', client.id);
     } catch (createError) {
@@ -373,6 +380,25 @@ router.put('/:id', authenticate, upload.single('profile_image'), async (req, res
       }
       // File path relative to uploads directory
       updateData.profile_image = `clients/${req.file.filename}`;
+    }
+    
+    // Handle total_dues and dues_currency
+    if (req.body.total_dues !== undefined) {
+      if (req.body.total_dues && req.body.total_dues !== '') {
+        const duesAmount = parseFloat(req.body.total_dues);
+        if (!isNaN(duesAmount) && duesAmount > 0) {
+          updateData.total_dues = -Math.abs(duesAmount); // Set as negative
+        }
+      } else {
+        updateData.total_dues = 0;
+      }
+    }
+    
+    // Handle dues_currency
+    if (req.body.dues_currency) {
+      if (['LRD', 'USD'].includes(req.body.dues_currency)) {
+        updateData.dues_currency = req.body.dues_currency;
+      }
     }
 
     await client.update(updateData);

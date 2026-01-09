@@ -69,24 +69,62 @@ router.post('/', [
     const transactionCount = await db.Transaction.count();
     const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
 
+    // Determine currency for transaction
+    let currency = req.body.currency || 'USD';
+    
+    // If transaction is related to a loan, inherit currency from loan
+    if (req.body.loan_id && !req.body.currency) {
+      const loan = await db.Loan.findByPk(req.body.loan_id);
+      if (loan && loan.currency) {
+        currency = loan.currency;
+      }
+    }
+    
+    // If transaction is related to a savings account, inherit currency from savings
+    if (req.body.savings_account_id && !req.body.currency) {
+      const savings = await db.SavingsAccount.findByPk(req.body.savings_account_id);
+      if (savings && savings.currency) {
+        currency = savings.currency;
+      }
+    }
+    
+    // If due payment, inherit currency from client's dues_currency
+    if (req.body.type === 'due_payment' && req.body.client_id && !req.body.currency) {
+      const client = await db.Client.findByPk(req.body.client_id);
+      if (client && client.dues_currency) {
+        currency = client.dues_currency;
+      }
+    }
+    
+    // Validate currency
+    if (!['LRD', 'USD'].includes(currency)) {
+      currency = 'USD'; // Default to USD if invalid
+    }
+
     const transaction = await db.Transaction.create({
       ...req.body,
       transaction_number: transactionNumber,
       branch_id: req.body.branch_id || req.user?.branch_id || null,
       status: 'completed',
       transaction_date: req.body.transaction_date || new Date(),
-      created_by: req.userId
+      created_by: req.userId,
+      currency: currency // Set currency for transaction
     });
 
-    // Handle due payment - reduce client's total_dues
+    // Handle due payment - reduce client's total_dues (only if same currency)
     if (req.body.type === 'due_payment' && req.body.client_id) {
       const client = await db.Client.findByPk(req.body.client_id);
       if (client) {
-        const paymentAmount = parseFloat(req.body.amount || 0);
-        const currentDues = parseFloat(client.total_dues || 0);
-        // Add payment amount to negative dues (reduces the negative balance)
-        const newDues = Math.min(0, currentDues + paymentAmount);
-        await client.update({ total_dues: newDues });
+        // Only process payment if currency matches client's dues currency
+        if (client.dues_currency === currency) {
+          const paymentAmount = parseFloat(req.body.amount || 0);
+          const currentDues = parseFloat(client.total_dues || 0);
+          // Add payment amount to negative dues (reduces the negative balance)
+          const newDues = Math.min(0, currentDues + paymentAmount);
+          await client.update({ total_dues: newDues });
+        } else {
+          console.warn(`Due payment currency (${currency}) does not match client dues currency (${client.dues_currency})`);
+        }
       }
     }
 

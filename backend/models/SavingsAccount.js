@@ -51,6 +51,12 @@ module.exports = (sequelize) => {
     closing_date: {
       type: DataTypes.DATEONLY,
       allowNull: true
+    },
+    currency: {
+      type: DataTypes.ENUM('LRD', 'USD'),
+      defaultValue: 'USD',
+      allowNull: false,
+      comment: 'Currency for the savings account (LRD or USD)'
     }
   }, {
     tableName: 'savings_accounts',

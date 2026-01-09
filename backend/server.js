@@ -196,14 +196,23 @@ db.sequelize.authenticate()
     // The postinstall script also runs migrations, but this ensures schema is up to date
     await db.sequelize.sync({ alter: true });
     
-    // Run additional migrations for ENUM changes (PostgreSQL requires special handling)
-    try {
-      const addExcessLoanType = require('./scripts/add-excess-loan-type');
-      await addExcessLoanType();
-    } catch (migrationError) {
-      console.error('⚠️  Migration warning (non-critical):', migrationError.message);
-      // Continue even if migration fails - it might already be applied
-    }
+           // Run additional migrations for ENUM changes (PostgreSQL requires special handling)
+           try {
+             const addExcessLoanType = require('./scripts/add-excess-loan-type');
+             await addExcessLoanType();
+           } catch (migrationError) {
+             console.error('⚠️  Migration warning (non-critical):', migrationError.message);
+             // Continue even if migration fails - it might already be applied
+           }
+           
+           // Run currency fields migration
+           try {
+             const addCurrencyFields = require('./scripts/add-currency-fields');
+             await addCurrencyFields();
+           } catch (currencyError) {
+             console.error('⚠️  Currency migration warning (non-critical):', currencyError.message);
+             // Continue even if migration fails - it might already be applied
+           }
     
     return Promise.resolve();
   })
