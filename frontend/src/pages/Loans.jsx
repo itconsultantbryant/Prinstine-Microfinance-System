@@ -673,21 +673,6 @@ const Loans = () => {
           </div>
         )}
       </div>
-        <div>
-          <h1 className="h3 mb-1">{user?.role === 'borrower' ? 'My Loans' : 'Loans'}</h1>
-          <p className="text-muted">
-            {user?.role === 'borrower' ? 'View your loan applications and status' : 'Manage all loan applications and disbursements'}
-          </p>
-        </div>
-        {user?.role !== 'borrower' && (
-          <button
-            className="btn btn-primary hover-lift"
-            onClick={() => setShowModal(true)}
-          >
-            <i className="fas fa-plus me-2"></i>New Loan Application
-          </button>
-        )}
-      </div>
 
       {/* Filters */}
       <div className="card mb-4">
