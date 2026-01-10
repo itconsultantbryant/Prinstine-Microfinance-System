@@ -58,6 +58,7 @@ router.post('/', [
   body('type').isIn(['deposit', 'withdrawal', 'loan_payment', 'loan_disbursement', 'fee', 'interest', 'penalty', 'transfer', 'push_back', 'personal_interest_payment', 'general_interest', 'due_payment']).withMessage('Valid transaction type is required'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount is required'),
   body('currency').optional().isIn(['LRD', 'USD']).withMessage('Currency must be LRD or USD'),
+  body('purpose').notEmpty().withMessage('Purpose of transaction is required'),
   body('description').optional().isString(),
   body('loan_id').optional().isInt(),
   body('savings_account_id').optional().isInt(),
@@ -156,6 +157,7 @@ router.post('/', [
       amount: parseFloat(req.body.amount),
       currency: currency,
       description: req.body.description || null,
+      purpose: req.body.purpose || null, // Include purpose field
       branch_id: req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || null),
       status: 'completed',
       transaction_date: req.body.transaction_date ? new Date(req.body.transaction_date) : new Date(),

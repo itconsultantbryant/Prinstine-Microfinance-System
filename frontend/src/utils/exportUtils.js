@@ -1,6 +1,14 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+
+// Extend jsPDF prototype with autoTable if not already extended
+if (typeof jsPDF !== 'undefined' && typeof jsPDF.API !== 'undefined') {
+  if (!jsPDF.API.autoTable && typeof autoTable === 'function') {
+    // If autoTable is a function, attach it to jsPDF prototype
+    jsPDF.API.autoTable = autoTable;
+  }
+}
 
 /**
  * Export data to PDF
@@ -44,16 +52,32 @@ export const exportToPDF = (data, columns, title, filename = 'export') => {
   // Get column headers
   const headers = columns.map(col => col.header);
   
-  // Add table
-  doc.autoTable({
-    head: [headers],
-    body: tableData,
-    startY: 28,
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [245, 245, 245] },
-    margin: { top: 28 }
-  });
+  // Add table - use autoTable function directly if available
+  if (typeof autoTable === 'function') {
+    autoTable(doc, {
+      head: [headers],
+      body: tableData,
+      startY: 28,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      margin: { top: 28 }
+    });
+  } else if (typeof doc.autoTable === 'function') {
+    // Fallback to prototype method if available
+    doc.autoTable({
+      head: [headers],
+      body: tableData,
+      startY: 28,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      margin: { top: 28 }
+    });
+  } else {
+    console.error('autoTable is not available. Please check jspdf-autotable import.');
+    throw new Error('PDF export failed: autoTable function not available');
+  }
   
   // Save the PDF
   doc.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);

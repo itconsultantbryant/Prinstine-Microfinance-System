@@ -62,6 +62,11 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true
     },
+    purpose: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Purpose of the transaction (e.g., Monthly savings, Emergency funds, Loan repayment, etc.)'
+    },
     status: {
       type: DataTypes.ENUM('pending', 'completed', 'failed', 'cancelled'),
       defaultValue: 'pending'

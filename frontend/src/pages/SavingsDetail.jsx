@@ -18,11 +18,13 @@ const SavingsDetail = () => {
   const [receipt, setReceipt] = useState(null);
   const [depositData, setDepositData] = useState({
     amount: '',
-    description: ''
+    description: '',
+    purpose: ''
   });
   const [withdrawData, setWithdrawData] = useState({
     amount: '',
-    description: ''
+    description: '',
+    purpose: ''
   });
 
   useEffect(() => {
@@ -51,10 +53,19 @@ const SavingsDetail = () => {
   const handleDeposit = async (e) => {
     e.preventDefault();
     try {
-      const response = await apiClient.post(`/api/savings/${id}/deposit`, depositData);
+      // Validate purpose
+      if (!depositData.purpose || depositData.purpose.trim() === '') {
+        toast.error('Please provide the purpose of this deposit');
+        return;
+      }
+      
+      const response = await apiClient.post(`/api/savings/${id}/deposit`, {
+        ...depositData,
+        purpose: depositData.purpose.trim()
+      });
       toast.success('Deposit processed successfully!');
       setShowDepositModal(false);
-      setDepositData({ amount: '', description: '' });
+      setDepositData({ amount: '', description: '', purpose: '' });
       setReceipt(response.data.data.receipt);
       fetchSavingsAccount();
     } catch (error) {
@@ -65,10 +76,19 @@ const SavingsDetail = () => {
   const handleWithdraw = async (e) => {
     e.preventDefault();
     try {
-      const response = await apiClient.post(`/api/savings/${id}/withdraw`, withdrawData);
+      // Validate purpose
+      if (!withdrawData.purpose || withdrawData.purpose.trim() === '') {
+        toast.error('Please provide the purpose of this withdrawal');
+        return;
+      }
+      
+      const response = await apiClient.post(`/api/savings/${id}/withdraw`, {
+        ...withdrawData,
+        purpose: withdrawData.purpose.trim()
+      });
       toast.success('Withdrawal processed successfully!');
       setShowWithdrawModal(false);
-      setWithdrawData({ amount: '', description: '' });
+      setWithdrawData({ amount: '', description: '', purpose: '' });
       setReceipt(response.data.data.receipt);
       fetchSavingsAccount();
     } catch (error) {
@@ -323,12 +343,25 @@ const SavingsDetail = () => {
                       />
                     </div>
                     <div className="mb-3">
-                      <label className="form-label">Description</label>
+                      <label className="form-label">Purpose of Deposit <span className="text-danger">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={depositData.purpose}
+                        onChange={(e) => setDepositData({ ...depositData, purpose: e.target.value })}
+                        placeholder="e.g., Monthly savings, Business proceeds, etc."
+                        required
+                      />
+                      <small className="text-muted">Please state the purpose of this deposit</small>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Additional Description (Optional)</label>
                       <textarea
                         className="form-control"
                         rows="2"
                         value={depositData.description}
                         onChange={(e) => setDepositData({ ...depositData, description: e.target.value })}
+                        placeholder="Any additional notes or details..."
                       />
                     </div>
                     {depositData.amount && (
@@ -385,12 +418,25 @@ const SavingsDetail = () => {
                       />
                     </div>
                     <div className="mb-3">
-                      <label className="form-label">Description</label>
+                      <label className="form-label">Purpose of Withdrawal <span className="text-danger">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={withdrawData.purpose}
+                        onChange={(e) => setWithdrawData({ ...withdrawData, purpose: e.target.value })}
+                        placeholder="e.g., Emergency funds, Business expenses, Personal use, etc."
+                        required
+                      />
+                      <small className="text-muted">Please state the purpose of this withdrawal</small>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Additional Description (Optional)</label>
                       <textarea
                         className="form-control"
                         rows="2"
                         value={withdrawData.description}
                         onChange={(e) => setWithdrawData({ ...withdrawData, description: e.target.value })}
+                        placeholder="Any additional notes or details..."
                       />
                     </div>
                     {withdrawData.amount && (

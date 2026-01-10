@@ -26,6 +26,7 @@ const Transactions = () => {
     amount: '',
     currency: 'USD', // Default currency
     description: '',
+    purpose: '',
     transaction_date: new Date().toISOString().split('T')[0]
   });
 
@@ -130,8 +131,17 @@ const Transactions = () => {
       if (formData.savings_account_id && formData.savings_account_id !== '') {
         submitData.savings_account_id = parseInt(formData.savings_account_id);
       }
+      // Validate purpose
+      if (!formData.purpose || formData.purpose.trim() === '') {
+        toast.error('Please provide the purpose of this transaction');
+        return;
+      }
+      
       if (formData.description && formData.description.trim() !== '') {
         submitData.description = formData.description.trim();
+      }
+      if (formData.purpose && formData.purpose.trim() !== '') {
+        submitData.purpose = formData.purpose.trim();
       }
       if (formData.transaction_date) {
         submitData.transaction_date = formData.transaction_date;
@@ -167,6 +177,7 @@ const Transactions = () => {
         amount: '',
         currency: 'USD',
         description: '',
+        purpose: '',
         transaction_date: new Date().toISOString().split('T')[0]
       });
       fetchTransactions();
@@ -211,6 +222,7 @@ const Transactions = () => {
         amount: transaction.amount || '',
         currency: transaction.currency || 'USD',
         description: transaction.description || '',
+        purpose: transaction.purpose || '',
         transaction_date: transaction.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       });
       setShowEditModal(true);
@@ -649,12 +661,25 @@ const Transactions = () => {
                         </div>
                       )}
                       <div className="col-md-12 mb-3">
-                        <label className="form-label">Description</label>
+                        <label className="form-label">Purpose of Transaction <span className="text-danger">*</span></label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.purpose}
+                          onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                          placeholder="e.g., Loan repayment, Savings deposit, Due payment, etc."
+                          required
+                        />
+                        <small className="text-muted">Please state the purpose of this transaction</small>
+                      </div>
+                      <div className="col-md-12 mb-3">
+                        <label className="form-label">Additional Description (Optional)</label>
                         <textarea
                           className="form-control"
                           value={formData.description}
                           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                           rows="3"
+                          placeholder="Any additional notes or details..."
                         />
                       </div>
                     </div>
@@ -937,13 +962,26 @@ const Transactions = () => {
                       />
                     </div>
                     <div className="col-12 mb-3">
-                      <label className="form-label">Description</label>
+                      <label className="form-label">Purpose of Transaction</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="purpose"
+                        value={formData.purpose}
+                        onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                        placeholder="e.g., Loan repayment, Savings deposit, Due payment, etc."
+                      />
+                      <small className="text-muted">Please state the purpose of this transaction</small>
+                    </div>
+                    <div className="col-12 mb-3">
+                      <label className="form-label">Additional Description (Optional)</label>
                       <textarea
                         className="form-control"
                         name="description"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         rows="3"
+                        placeholder="Any additional notes or details..."
                       />
                     </div>
                   </div>

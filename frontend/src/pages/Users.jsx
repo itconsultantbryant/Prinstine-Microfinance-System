@@ -25,6 +25,10 @@ const Users = () => {
   });
   const [editFormErrors, setEditFormErrors] = useState({});
   const [editingPassword, setEditingPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -587,14 +591,24 @@ const Users = () => {
 
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Password <span className="text-danger">*</span></label>
-                      <input
-                        type="password"
-                        className={`form-control ${formErrors.password ? 'is-invalid' : ''}`}
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                      />
+                      <div className="input-group">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          className={`form-control ${formErrors.password ? 'is-invalid' : ''}`}
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() => setShowPassword(!showPassword)}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                        </button>
+                      </div>
                       {formErrors.password && (
                         <div className="invalid-feedback">{formErrors.password}</div>
                       )}
@@ -602,14 +616,24 @@ const Users = () => {
 
                     <div className="col-md-6 mb-3">
                       <label className="form-label">Confirm Password <span className="text-danger">*</span></label>
-                      <input
-                        type="password"
-                        className={`form-control ${formErrors.confirmPassword ? 'is-invalid' : ''}`}
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        required
-                      />
+                      <div className="input-group">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          className={`form-control ${formErrors.confirmPassword ? 'is-invalid' : ''}`}
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          title={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                        </button>
+                      </div>
                       {formErrors.confirmPassword && (
                         <div className="invalid-feedback">{formErrors.confirmPassword}</div>
                       )}
@@ -1025,14 +1049,24 @@ const Users = () => {
                       <>
                         <div className="col-md-6 mb-3">
                           <label className="form-label">New Password <span className="text-danger">*</span></label>
-                          <input
-                            type="password"
-                            className={`form-control ${editFormErrors.password ? 'is-invalid' : ''}`}
-                            name="password"
-                            value={editFormData.password}
-                            onChange={handleEditChange}
-                            required={editingPassword}
-                          />
+                          <div className="input-group">
+                            <input
+                              type={showEditPassword ? "text" : "password"}
+                              className={`form-control ${editFormErrors.password ? 'is-invalid' : ''}`}
+                              name="password"
+                              value={editFormData.password}
+                              onChange={handleEditChange}
+                              required={editingPassword}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => setShowEditPassword(!showEditPassword)}
+                              title={showEditPassword ? "Hide password" : "Show password"}
+                            >
+                              <i className={`fas ${showEditPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                            </button>
+                          </div>
                           {editFormErrors.password && (
                             <div className="invalid-feedback">{editFormErrors.password}</div>
                           )}
@@ -1040,14 +1074,24 @@ const Users = () => {
 
                         <div className="col-md-6 mb-3">
                           <label className="form-label">Confirm Password <span className="text-danger">*</span></label>
-                          <input
-                            type="password"
-                            className={`form-control ${editFormErrors.confirmPassword ? 'is-invalid' : ''}`}
-                            name="confirmPassword"
-                            value={editFormData.confirmPassword}
-                            onChange={handleEditChange}
-                            required={editingPassword}
-                          />
+                          <div className="input-group">
+                            <input
+                              type={showEditConfirmPassword ? "text" : "password"}
+                              className={`form-control ${editFormErrors.confirmPassword ? 'is-invalid' : ''}`}
+                              name="confirmPassword"
+                              value={editFormData.confirmPassword}
+                              onChange={handleEditChange}
+                              required={editingPassword}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => setShowEditConfirmPassword(!showEditConfirmPassword)}
+                              title={showEditConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                              <i className={`fas ${showEditConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                            </button>
+                          </div>
                           {editFormErrors.confirmPassword && (
                             <div className="invalid-feedback">{editFormErrors.confirmPassword}</div>
                           )}

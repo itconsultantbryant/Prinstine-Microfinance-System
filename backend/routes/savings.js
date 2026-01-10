@@ -247,6 +247,7 @@ router.post('/', [
             amount: initialDeposit,
             currency: currency,
             description: `Initial deposit for ${accountNumber}`,
+            purpose: 'Initial account opening deposit',
             transaction_date: savingsAccount.opening_date || new Date(),
             status: 'completed',
             branch_id: branchId,
@@ -313,6 +314,7 @@ router.post('/', [
 // Deposit to savings account
 router.post('/:id/deposit', [
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid deposit amount is required'),
+  body('purpose').notEmpty().withMessage('Purpose of deposit is required'),
   body('description').optional().isString()
 ], async (req, res) => {
   try {
@@ -385,6 +387,7 @@ router.post('/:id/deposit', [
       amount: depositAmount,
       currency: savingsAccount.currency || 'USD', // Include currency from savings account
       description: req.body.description || `Deposit to ${savingsAccount.account_number}`,
+      purpose: req.body.purpose || null, // Include purpose field
       transaction_date: new Date(),
       status: 'completed',
       branch_id: savingsAccount.branch_id,
@@ -438,6 +441,7 @@ router.post('/:id/deposit', [
 // Withdraw from savings account
 router.post('/:id/withdraw', [
   body('amount').isFloat({ min: 0.01 }).withMessage('Valid withdrawal amount is required'),
+  body('purpose').notEmpty().withMessage('Purpose of withdrawal is required'),
   body('description').optional().isString()
 ], async (req, res) => {
   try {
@@ -521,6 +525,7 @@ router.post('/:id/withdraw', [
       amount: withdrawalAmount,
       currency: savingsAccount.currency || 'USD', // Include currency from savings account
       description: req.body.description || `Withdrawal from ${savingsAccount.account_number}`,
+      purpose: req.body.purpose || null, // Include purpose field
       transaction_date: new Date(),
       status: 'completed',
       branch_id: savingsAccount.branch_id,

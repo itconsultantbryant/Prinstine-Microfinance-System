@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -89,20 +90,36 @@ const Login = () => {
                   <i className="fas fa-lock me-2 text-primary"></i>
                   Password
                 </label>
-                <input
-                  type="password"
-                  className="form-control form-control-lg"
-                  id="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  style={{ 
-                    borderRadius: '10px',
-                    border: '2px solid #e2e8f0',
-                    padding: '12px 15px'
-                  }}
-                />
+                <div className="input-group">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="form-control form-control-lg"
+                    id="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{ 
+                      borderRadius: '10px 0 0 10px',
+                      border: '2px solid #e2e8f0',
+                      padding: '12px 15px'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ 
+                      borderRadius: '0 10px 10px 0',
+                      border: '2px solid #e2e8f0',
+                      borderLeft: 'none',
+                      padding: '12px 15px'
+                    }}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
 
               <button
