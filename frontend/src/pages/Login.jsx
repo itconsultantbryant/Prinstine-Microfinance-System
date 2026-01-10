@@ -43,13 +43,19 @@ const Login = () => {
               src="/assets/prinstine_microfinance_logo.png" 
               alt="Prinstine Microfinance Logo" 
               className="img-fluid"
-              style={{ maxHeight: '120px', maxWidth: '200px' }}
+              style={{ maxHeight: '120px', maxWidth: '200px', margin: '0 auto' }}
               onError={(e) => {
+                // If logo fails to load, show company name as text instead of emoji
                 e.target.style.display = 'none';
-                e.target.nextElementSibling.style.display = 'block';
+                if (e.target.nextElementSibling) {
+                  e.target.nextElementSibling.style.display = 'block';
+                }
               }}
             />
-            <div style={{ display: 'none', fontSize: '48px' }}>🏦</div>
+            <div style={{ display: 'none', padding: '20px 0' }}>
+              <h3 className="text-primary mb-1" style={{ fontWeight: '700', fontSize: '24px' }}>Prinstine Microfinance</h3>
+              <p className="text-muted mb-0" style={{ fontSize: '14px' }}>Loans and Savings</p>
+            </div>
           </div>
 
           {/* Form Section */}

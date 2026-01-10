@@ -86,10 +86,11 @@ const Layout = ({ children }) => {
                   objectFit: 'contain'
                 }}
                 onError={(e) => {
+                  // Hide image if it fails to load - company name text will still be visible
                   e.target.style.display = 'none';
                 }}
               />
-              <h5 className="text-white mb-0" style={{ fontSize: '14px', lineHeight: '1.2' }}>
+              <h5 className="text-white mb-0" style={{ fontSize: '14px', lineHeight: '1.2', fontWeight: '600' }}>
                 Prinstine<br />Microfinance
               </h5>
             </div>
