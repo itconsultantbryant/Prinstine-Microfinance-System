@@ -13,7 +13,7 @@ const RequestLoan = () => {
   const [formData, setFormData] = useState({
     amount: '',
     currency: 'USD', // Default currency
-    term_months: '12',
+    term_months: '3',
     interest_rate: '',
     upfront_percentage: '',
     upfront_amount: '',
@@ -186,8 +186,8 @@ const RequestLoan = () => {
       errors.term_months = 'Valid loan term is required';
     }
     
-    if (!formData.loan_purpose || formData.loan_purpose.trim().length < 10) {
-      errors.loan_purpose = 'Loan purpose is required (minimum 10 characters)';
+    if (!formData.loan_purpose || formData.loan_purpose.trim().length < 1) {
+      errors.loan_purpose = 'Loan purpose is required (minimum 1 character)';
     }
     
     setFormErrors(errors);
@@ -469,14 +469,14 @@ const RequestLoan = () => {
                       value={formData.loan_purpose}
                       onChange={handleChange}
                       rows="4"
-                      placeholder="Please describe the purpose of this loan (minimum 10 characters)"
+                      placeholder="Please describe the purpose of this loan (minimum 1 character)"
                       required
                     ></textarea>
                     {formErrors.loan_purpose && (
                       <div className="invalid-feedback d-block">{formErrors.loan_purpose}</div>
                     )}
                     <small className="form-text text-muted">
-                      {formData.loan_purpose.length}/10 minimum characters
+                      {formData.loan_purpose.length}/1 minimum characters
                     </small>
                   </div>
 
