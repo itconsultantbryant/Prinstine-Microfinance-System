@@ -13,7 +13,7 @@ const Staff = () => {
   const fetchStaff = async () => {
     try {
       const response = await apiClient.get('/api/staff');
-      setStaff(response.data.data.staff || []);
+      setStaff(response.data?.data?.staff ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch staff:', error);

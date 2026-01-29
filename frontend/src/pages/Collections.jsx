@@ -13,7 +13,7 @@ const Collections = () => {
   const fetchCollections = async () => {
     try {
       const response = await apiClient.get('/api/collections');
-      setCollections(response.data.data.collections || []);
+      setCollections(response.data?.data?.collections ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch collections:', error);

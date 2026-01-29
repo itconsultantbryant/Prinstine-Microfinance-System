@@ -74,7 +74,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'loan_repayments',
-    timestamps: true
+    timestamps: true,
+    paranoid: true,
+    deletedAt: 'deleted_at'
   });
 
   return LoanRepayment;

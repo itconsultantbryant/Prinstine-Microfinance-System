@@ -13,7 +13,7 @@ const ApprovalCenter = () => {
   const fetchPendingItems = async () => {
     try {
       const loansResponse = await apiClient.get('/api/loans', { params: { status: 'pending' } });
-      setPendingItems(loansResponse.data.data.loans || []);
+      setPendingItems(loansResponse.data?.data?.loans ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch pending items:', error);
@@ -39,7 +39,7 @@ const ApprovalCenter = () => {
         toast.success('Item rejected');
         fetchPendingItems();
       } catch (error) {
-        toast.error('Failed to reject item');
+        toast.error(error.response?.data?.message || 'Failed to reject item');
       }
     }
   };

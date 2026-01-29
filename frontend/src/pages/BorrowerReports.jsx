@@ -70,10 +70,10 @@ const BorrowerReports = () => {
         apiClient.get('/api/clients') // Get client data for dues
       ]);
 
-      const loans = loansRes.data.data.loans || [];
-      const savings = savingsRes.data.data.savingsAccounts || [];
-      const allTransactions = transactionsRes.data.data.transactions || [];
-      const clients = clientsRes.data.data.clients || [];
+      const loans = loansRes.data?.data?.loans ?? [];
+      const savings = savingsRes.data?.data?.savingsAccounts ?? [];
+      const allTransactions = transactionsRes.data?.data?.transactions ?? [];
+      const clients = clientsRes.data?.data?.clients ?? [];
       const client = clients.length > 0 ? clients[0] : null; // Borrower should only have one client record
 
       // Filter loan payment transactions
@@ -226,7 +226,7 @@ const BorrowerReports = () => {
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch report data:', error);
-      toast.error('Failed to load reports');
+      toast.error(error.response?.data?.message || 'Failed to load reports');
       setLoading(false);
     }
   };

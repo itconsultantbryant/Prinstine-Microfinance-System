@@ -34,8 +34,9 @@ const LoanDetail = () => {
   const fetchLoan = async () => {
     try {
       const response = await apiClient.get(`/api/loans/${id}`);
-      setLoan(response.data.data.loan);
-      setFormData(response.data.data.loan);
+      const loanData = response.data?.data?.loan;
+      setLoan(loanData ?? null);
+      setFormData(loanData ?? {});
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch loan:', error);
@@ -47,7 +48,7 @@ const LoanDetail = () => {
   const fetchClients = async () => {
     try {
       const response = await apiClient.get('/api/clients');
-      setClients(response.data.data.clients || []);
+      setClients(response.data?.data?.clients ?? []);
     } catch (error) {
       console.error('Failed to fetch clients:', error);
     }
@@ -56,7 +57,7 @@ const LoanDetail = () => {
   const fetchBranches = async () => {
     try {
       const response = await apiClient.get('/api/branches');
-      setBranches(response.data.data.branches || []);
+      setBranches(response.data?.data?.branches ?? []);
     } catch (error) {
       console.error('Failed to fetch branches:', error);
     }
@@ -65,7 +66,7 @@ const LoanDetail = () => {
   const fetchCollaterals = async () => {
     try {
       const response = await apiClient.get('/api/collaterals');
-      setCollaterals(response.data.data.collaterals || []);
+      setCollaterals(response.data?.data?.collaterals ?? []);
     } catch (error) {
       console.error('Failed to fetch collaterals:', error);
     }

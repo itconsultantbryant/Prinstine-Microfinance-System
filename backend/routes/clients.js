@@ -467,14 +467,14 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
   }
 });
 
-// Helper function to delete all financial records for a client
+// Helper function to delete all financial records for a client (soft delete where supported)
 async function deleteClientFinancialRecords(clientId, transaction) {
   // 1. Get all loans for this client
-  const loans = await db.Loan.findAll({ where: { client_id: clientId }, transaction });
+  const loans = await db.Loan.findAll({ where: { client_id: clientId }, transaction, paranoid: false });
   const loanIds = loans.map(loan => loan.id);
 
   // 2. Get all savings accounts for this client
-  const savingsAccounts = await db.SavingsAccount.findAll({ where: { client_id: clientId }, transaction });
+  const savingsAccounts = await db.SavingsAccount.findAll({ where: { client_id: clientId }, transaction, paranoid: false });
   const savingsIds = savingsAccounts.map(savings => savings.id);
 
   // 3. Get all transaction IDs that need revenue deletion (before deleting transactions)
@@ -497,72 +497,63 @@ async function deleteClientFinancialRecords(clientId, transaction) {
   });
   const transactionIds = allTransactions.map(t => t.id);
 
-  // 4. Delete revenue records associated with transactions
+  // 4. Delete revenue records associated with transactions (Revenue is not paranoid)
   if (transactionIds.length > 0) {
     await db.Revenue.destroy({
       where: { transaction_id: { [db.Sequelize.Op.in]: transactionIds } },
-      force: true, // Hard delete
       transaction
     });
   }
 
-  // 5. Delete loan repayments for all loans
+  // 5. Delete loan repayments for all loans (LoanRepayment is not paranoid)
   if (loanIds.length > 0) {
     await db.LoanRepayment.destroy({
       where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
-      force: true, // Hard delete
       transaction
     });
 
-    // 6. Delete collections for all loans
+    // 6. Delete collections for all loans (Collection is not paranoid)
     await db.Collection.destroy({
       where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
-      force: true, // Hard delete
       transaction
     });
 
-    // 7. Delete revenue records associated with loans
+    // 7. Delete revenue records associated with loans (Revenue is not paranoid)
     await db.Revenue.destroy({
       where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
-      force: true, // Hard delete
       transaction
     });
 
-    // 8. Delete loans
+    // 8. Soft delete loans
     await db.Loan.destroy({
       where: { client_id: clientId },
-      force: true, // Hard delete
       transaction
     });
   }
 
-  // 9. Delete savings accounts
+  // 9. Soft delete savings accounts
   if (savingsIds.length > 0) {
     await db.SavingsAccount.destroy({
       where: { client_id: clientId },
-      force: true, // Hard delete
       transaction
     });
   }
 
-  // 10. Delete all transactions (client_id, loan_id, or savings_account_id)
+  // 10. Soft delete all transactions (client_id, loan_id, or savings_account_id)
   await db.Transaction.destroy({
     where: transactionWhere,
-    force: true, // Hard delete
     transaction
   });
 
-  // 11. Delete collaterals for this client
+  // 11. Soft delete collaterals for this client
   await db.Collateral.destroy({
     where: { client_id: clientId },
-    force: true, // Hard delete
     transaction
   });
 
-  // 12. Delete KYC documents for this client
+  // 12. Soft delete KYC documents for this client
   await db.KycDocument.destroy({
     where: { client_id: clientId },
-    force: true, // Hard delete
     transaction
   });
 }
@@ -790,6 +781,14 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
 
     // Delete all financial records associated with the client
     await deleteClientFinancialRecords(client.id, transaction);
+
+    // Soft delete associated user account if present
+    if (client.user_id) {
+      const clientUser = await db.User.findByPk(client.user_id, { transaction });
+      if (clientUser) {
+        await clientUser.destroy({ transaction });
+      }
+    }
 
     // Finally, delete the client
     await client.destroy({ transaction }); // Soft delete with paranoid

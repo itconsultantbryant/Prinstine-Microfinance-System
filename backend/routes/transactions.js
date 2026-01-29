@@ -288,24 +288,34 @@ router.put('/:id', [
   }
 });
 
-// Delete transaction
+// Delete transaction (soft delete) and related revenue
 router.delete('/:id', async (req, res) => {
+  const dbTransaction = await db.sequelize.transaction();
   try {
-    const transaction = await db.Transaction.findByPk(req.params.id);
+    const transaction = await db.Transaction.findByPk(req.params.id, { transaction: dbTransaction });
     if (!transaction) {
+      await dbTransaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Transaction not found'
       });
     }
 
-    await transaction.destroy();
+    await db.Revenue.destroy({
+      where: { transaction_id: transaction.id },
+      transaction: dbTransaction
+    });
+
+    await transaction.destroy({ transaction: dbTransaction });
+
+    await dbTransaction.commit();
 
     res.json({
       success: true,
       message: 'Transaction deleted successfully'
     });
   } catch (error) {
+    await dbTransaction.rollback();
     console.error('Delete transaction error:', error);
     res.status(500).json({
       success: false,

@@ -13,6 +13,9 @@ const RecycleBin = () => {
   const [deletedCollaterals, setDeletedCollaterals] = useState([]);
   const [deletedKycDocs, setDeletedKycDocs] = useState([]);
   const [deletedBranches, setDeletedBranches] = useState([]);
+  const [deletedRevenues, setDeletedRevenues] = useState([]);
+  const [deletedLoanRepayments, setDeletedLoanRepayments] = useState([]);
+  const [deletedCollections, setDeletedCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('clients');
 
@@ -25,15 +28,18 @@ const RecycleBin = () => {
       const response = await apiClient.get('/api/recycle', {
         params: { type: activeTab }
       });
-      const data = response.data.data;
-      setDeletedUsers(data.users || []);
-      setDeletedClients(data.clients || []);
-      setDeletedLoans(data.loans || []);
-      setDeletedTransactions(data.transactions || []);
-      setDeletedSavings(data.savings || []);
-      setDeletedCollaterals(data.collaterals || []);
-      setDeletedKycDocs(data.kyc_documents || []);
-      setDeletedBranches(data.branches || []);
+      const data = response.data?.data ?? {};
+      setDeletedUsers(data.users ?? []);
+      setDeletedClients(data.clients ?? []);
+      setDeletedLoans(data.loans ?? []);
+      setDeletedTransactions(data.transactions ?? []);
+      setDeletedSavings(data.savings ?? []);
+      setDeletedCollaterals(data.collaterals ?? []);
+      setDeletedKycDocs(data.kyc_documents ?? []);
+      setDeletedBranches(data.branches ?? []);
+      setDeletedRevenues(data.revenues ?? []);
+      setDeletedLoanRepayments(data.loan_repayments ?? []);
+      setDeletedCollections(data.collections ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch deleted items:', error);
@@ -45,13 +51,17 @@ const RecycleBin = () => {
   const handleRestore = async (type, id) => {
     try {
       const typeMap = {
+        'users': 'users',
         'clients': 'clients',
         'loans': 'loans',
         'transactions': 'transactions',
         'savings': 'savings',
         'collaterals': 'collaterals',
         'kyc': 'kyc',
-        'branches': 'branches'
+        'branches': 'branches',
+        'revenues': 'revenues',
+        'loan_repayments': 'loan-repayments',
+        'collections': 'collections'
       };
       await apiClient.post(`/api/recycle/${typeMap[type]}/${id}/restore`);
       const itemNames = {
@@ -62,7 +72,10 @@ const RecycleBin = () => {
         'savings': 'Savings account',
         'collaterals': 'Collateral',
         'kyc': 'KYC document',
-        'branches': 'Branch'
+        'branches': 'Branch',
+        'revenues': 'Revenue',
+        'loan_repayments': 'Loan repayment',
+        'collections': 'Collection'
       };
       toast.success(`${itemNames[type]} restored successfully!`);
       fetchDeletedItems();
@@ -80,20 +93,27 @@ const RecycleBin = () => {
       'savings': 'savings account',
       'collaterals': 'collateral',
       'kyc': 'KYC document',
-      'branches': 'branch'
+      'branches': 'branch',
+      'revenues': 'revenue',
+      'loan_repayments': 'loan repayment',
+      'collections': 'collection'
     };
     if (!window.confirm(`Are you sure you want to permanently delete this ${itemNames[type]}? This action cannot be undone!`)) {
       return;
     }
     try {
       const typeMap = {
+        'users': 'users',
         'clients': 'clients',
         'loans': 'loans',
         'transactions': 'transactions',
         'savings': 'savings',
         'collaterals': 'collaterals',
         'kyc': 'kyc',
-        'branches': 'branches'
+        'branches': 'branches',
+        'revenues': 'revenues',
+        'loan_repayments': 'loan-repayments',
+        'collections': 'collections'
       };
       await apiClient.delete(`/api/recycle/${typeMap[type]}/${id}`);
       toast.success(`${itemNames[type]} permanently deleted`);
@@ -188,6 +208,30 @@ const RecycleBin = () => {
             onClick={() => setActiveTab('branches')}
           >
             <i className="fas fa-building me-2"></i>Branches ({deletedBranches.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'revenues' ? 'active' : ''}`}
+            onClick={() => setActiveTab('revenues')}
+          >
+            <i className="fas fa-coins me-2"></i>Revenues ({deletedRevenues.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'loan_repayments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('loan_repayments')}
+          >
+            <i className="fas fa-receipt me-2"></i>Loan Repayments ({deletedLoanRepayments.length})
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'collections' ? 'active' : ''}`}
+            onClick={() => setActiveTab('collections')}
+          >
+            <i className="fas fa-hand-holding-heart me-2"></i>Collections ({deletedCollections.length})
           </button>
         </li>
       </ul>
@@ -605,6 +649,161 @@ const RecycleBin = () => {
               <div className="text-center py-5">
                 <i className="fas fa-trash fa-3x text-muted mb-3 d-block"></i>
                 <p className="text-muted">No deleted branches found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Deleted Revenues */}
+      {activeTab === 'revenues' && (
+        <div className="card">
+          <div className="card-body p-0">
+            {deletedRevenues.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Revenue Number</th>
+                      <th>Source</th>
+                      <th>Amount</th>
+                      <th>Currency</th>
+                      <th>Related</th>
+                      <th>Deleted At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedRevenues.map((revenue) => (
+                      <tr key={revenue.id}>
+                        <td><strong>{revenue.revenue_number}</strong></td>
+                        <td>{revenue.source}</td>
+                        <td>{parseFloat(revenue.amount || 0).toLocaleString()}</td>
+                        <td>{revenue.currency || 'USD'}</td>
+                        <td>
+                          {revenue.loan?.loan_number ? `Loan: ${revenue.loan.loan_number}` : 
+                          revenue.transaction?.transaction_number ? `Txn: ${revenue.transaction.transaction_number}` : '-'}
+                        </td>
+                        <td>{moment(revenue.deleted_at).format('YYYY-MM-DD HH:mm')}</td>
+                        <td>
+                          <button className="btn btn-sm btn-success me-2" onClick={() => handleRestore('revenues', revenue.id)}>
+                            <i className="fas fa-undo me-1"></i>Restore
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handlePermanentDelete('revenues', revenue.id)}>
+                            <i className="fas fa-trash-alt me-1"></i>Delete Forever
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-5">
+                <i className="fas fa-trash fa-3x text-muted mb-3 d-block"></i>
+                <p className="text-muted">No deleted revenues found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Deleted Loan Repayments */}
+      {activeTab === 'loan_repayments' && (
+        <div className="card">
+          <div className="card-body p-0">
+            {deletedLoanRepayments.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Repayment Number</th>
+                      <th>Loan</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Payment Date</th>
+                      <th>Deleted At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedLoanRepayments.map((repayment) => (
+                      <tr key={repayment.id}>
+                        <td><strong>{repayment.repayment_number}</strong></td>
+                        <td>{repayment.loan?.loan_number || '-'}</td>
+                        <td>{parseFloat(repayment.amount || 0).toLocaleString()}</td>
+                        <td>{repayment.status}</td>
+                        <td>{repayment.payment_date ? moment(repayment.payment_date).format('YYYY-MM-DD') : '-'}</td>
+                        <td>{moment(repayment.deleted_at).format('YYYY-MM-DD HH:mm')}</td>
+                        <td>
+                          <button className="btn btn-sm btn-success me-2" onClick={() => handleRestore('loan_repayments', repayment.id)}>
+                            <i className="fas fa-undo me-1"></i>Restore
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handlePermanentDelete('loan_repayments', repayment.id)}>
+                            <i className="fas fa-trash-alt me-1"></i>Delete Forever
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-5">
+                <i className="fas fa-trash fa-3x text-muted mb-3 d-block"></i>
+                <p className="text-muted">No deleted loan repayments found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Deleted Collections */}
+      {activeTab === 'collections' && (
+        <div className="card">
+          <div className="card-body p-0">
+            {deletedCollections.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Collection Number</th>
+                      <th>Loan</th>
+                      <th>Amount Due</th>
+                      <th>Amount Collected</th>
+                      <th>Overdue Days</th>
+                      <th>Status</th>
+                      <th>Deleted At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedCollections.map((collection) => (
+                      <tr key={collection.id}>
+                        <td><strong>{collection.collection_number}</strong></td>
+                        <td>{collection.loan?.loan_number || '-'}</td>
+                        <td>{parseFloat(collection.amount_due || 0).toLocaleString()}</td>
+                        <td>{parseFloat(collection.amount_collected || 0).toLocaleString()}</td>
+                        <td>{collection.overdue_days}</td>
+                        <td>{collection.status}</td>
+                        <td>{moment(collection.deleted_at).format('YYYY-MM-DD HH:mm')}</td>
+                        <td>
+                          <button className="btn btn-sm btn-success me-2" onClick={() => handleRestore('collections', collection.id)}>
+                            <i className="fas fa-undo me-1"></i>Restore
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handlePermanentDelete('collections', collection.id)}>
+                            <i className="fas fa-trash-alt me-1"></i>Delete Forever
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-5">
+                <i className="fas fa-trash fa-3x text-muted mb-3 d-block"></i>
+                <p className="text-muted">No deleted collections found</p>
               </div>
             )}
           </div>

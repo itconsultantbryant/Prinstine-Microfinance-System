@@ -13,7 +13,7 @@ const Payroll = () => {
   const fetchPayrolls = async () => {
     try {
       const response = await apiClient.get('/api/payroll');
-      setPayrolls(response.data.data.payrolls || []);
+      setPayrolls(response.data?.data?.payrolls ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch payrolls:', error);

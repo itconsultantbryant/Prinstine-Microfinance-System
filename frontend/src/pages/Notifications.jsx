@@ -15,10 +15,11 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       const response = await apiClient.get('/api/notifications');
-      setNotifications(response.data.data.notifications || []);
+      setNotifications(response.data?.data?.notifications ?? []);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      toast.error(error.response?.data?.message || 'Failed to load notifications');
       setLoading(false);
     }
   };
@@ -29,6 +30,7 @@ const Notifications = () => {
       fetchNotifications();
     } catch (error) {
       console.error('Failed to mark as read:', error);
+      toast.error(error.response?.data?.message || 'Failed to mark notification as read');
     }
   };
 

@@ -663,24 +663,48 @@ router.put('/:id', [
   }
 });
 
-// Delete savings account
+// Delete savings account (soft delete) and related transactions
 router.delete('/:id', async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const savingsAccount = await db.SavingsAccount.findByPk(req.params.id);
+    const savingsAccount = await db.SavingsAccount.findByPk(req.params.id, { transaction });
     if (!savingsAccount) {
+      await transaction.rollback();
       return res.status(404).json({
         success: false,
         message: 'Savings account not found'
       });
     }
 
-    await savingsAccount.destroy();
+    const transactions = await db.Transaction.findAll({
+      where: { savings_account_id: savingsAccount.id },
+      attributes: ['id'],
+      transaction
+    });
+    const transactionIds = transactions.map(t => t.id);
+
+    if (transactionIds.length > 0) {
+      await db.Revenue.destroy({
+        where: { transaction_id: { [db.Sequelize.Op.in]: transactionIds } },
+        transaction
+      });
+    }
+
+    await db.Transaction.destroy({
+      where: { savings_account_id: savingsAccount.id },
+      transaction
+    });
+
+    await savingsAccount.destroy({ transaction });
+
+    await transaction.commit();
 
     res.json({
       success: true,
       message: 'Savings account deleted successfully'
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Delete savings account error:', error);
     res.status(500).json({
       success: false,

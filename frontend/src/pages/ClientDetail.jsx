@@ -27,8 +27,9 @@ const ClientDetail = () => {
   const fetchClient = async () => {
     try {
       const response = await apiClient.get(`/api/clients/${id}`);
-      setClient(response.data.data.client);
-      setFormData(response.data.data.client);
+      const clientData = response.data?.data?.client;
+      setClient(clientData ?? null);
+      setFormData(clientData ?? {});
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch client:', error);
@@ -40,7 +41,7 @@ const ClientDetail = () => {
   const fetchBranches = async () => {
     try {
       const response = await apiClient.get('/api/branches');
-      setBranches(response.data.data.branches || []);
+      setBranches(response.data?.data?.branches ?? []);
     } catch (error) {
       console.error('Failed to fetch branches:', error);
     }
@@ -58,7 +59,7 @@ const ClientDetail = () => {
   const fetchClientSavings = async () => {
     try {
       const response = await apiClient.get(`/api/clients/${id}/savings`);
-      setSavings(response.data.data.savingsAccounts || []);
+      setSavings(response.data?.data?.savingsAccounts ?? []);
     } catch (error) {
       console.error('Failed to fetch client savings:', error);
     }

@@ -190,14 +190,151 @@ app.use((req, res) => {
   }
 });
 
+const ensureDeletedAtColumns = async (sequelize, tables) => {
+  const { QueryTypes } = db.Sequelize;
+  for (const table of tables) {
+    try {
+      const columns = await sequelize.query(`PRAGMA table_info(${table})`, {
+        type: QueryTypes.SELECT
+      });
+      const hasDeletedAt = columns.some((col) => col.name === 'deleted_at');
+      if (!hasDeletedAt) {
+        await sequelize.query(`ALTER TABLE ${table} ADD COLUMN deleted_at DATETIME`, {
+          type: QueryTypes.RAW
+        });
+        console.log(`✅ Added deleted_at column to ${table}`);
+      }
+    } catch (error) {
+      console.error(`⚠️  Failed checking ${table} columns:`, error.message);
+    }
+  }
+};
+
+const ensureTableColumns = async (sequelize, table, columns) => {
+  const { QueryTypes } = db.Sequelize;
+  try {
+    const existingColumns = await sequelize.query(`PRAGMA table_info(${table})`, {
+      type: QueryTypes.SELECT
+    });
+    const columnNames = new Set(existingColumns.map((col) => col.name));
+    for (const column of columns) {
+      if (!columnNames.has(column.name)) {
+        await sequelize.query(
+          `ALTER TABLE ${table} ADD COLUMN ${column.name} ${column.type}`,
+          { type: QueryTypes.RAW }
+        );
+        console.log(`✅ Added ${column.name} column to ${table}`);
+      }
+    }
+  } catch (error) {
+    console.error(`⚠️  Failed checking ${table} columns:`, error.message);
+  }
+};
+
 // Database connection and server start
 db.sequelize.authenticate()
   .then(async () => {
     console.log('✅ Database connection established successfully.');
     
-    // Sync database - use alter: true to add new columns automatically
-    // The postinstall script also runs migrations, but this ensures schema is up to date
-    await db.sequelize.sync({ alter: true });
+    const isSqlite = db.sequelize.getDialect() === 'sqlite';
+
+    if (isSqlite) {
+      // SQLite + alter can fail on column changes; sync without alter and patch missing columns
+      await db.sequelize.sync();
+      await ensureDeletedAtColumns(db.sequelize, [
+        'branches',
+        'users',
+        'clients',
+        'loans',
+        'savings_accounts',
+        'transactions',
+        'collaterals',
+        'kyc_documents',
+        'revenues',
+        'loan_repayments',
+        'collections'
+      ]);
+
+      await ensureTableColumns(db.sequelize, 'revenues', [
+        { name: 'revenue_number', type: 'VARCHAR(255)' },
+        { name: 'source', type: 'VARCHAR(50)' },
+        { name: 'loan_id', type: 'INTEGER' },
+        { name: 'transaction_id', type: 'INTEGER' },
+        { name: 'amount', type: 'DECIMAL(15,2)' },
+        { name: 'currency', type: 'VARCHAR(3)' },
+        { name: 'description', type: 'TEXT' },
+        { name: 'revenue_date', type: 'DATE' },
+        { name: 'created_by', type: 'INTEGER' }
+      ]);
+
+      await ensureTableColumns(db.sequelize, 'loan_repayments', [
+        { name: 'loan_id', type: 'INTEGER' },
+        { name: 'repayment_number', type: 'VARCHAR(255)' },
+        { name: 'installment_number', type: 'INTEGER' },
+        { name: 'amount', type: 'DECIMAL(15,2)' },
+        { name: 'principal_amount', type: 'DECIMAL(15,2)' },
+        { name: 'interest_amount', type: 'DECIMAL(15,2)' },
+        { name: 'penalty_amount', type: 'DECIMAL(15,2)' },
+        { name: 'payment_date', type: 'DATE' },
+        { name: 'due_date', type: 'DATE' },
+        { name: 'status', type: 'VARCHAR(20)' },
+        { name: 'payment_method', type: 'VARCHAR(20)' },
+        { name: 'transaction_id', type: 'INTEGER' },
+        { name: 'created_by', type: 'INTEGER' }
+      ]);
+
+      await ensureTableColumns(db.sequelize, 'collections', [
+        { name: 'loan_id', type: 'INTEGER' },
+        { name: 'collection_number', type: 'VARCHAR(255)' },
+        { name: 'amount_due', type: 'DECIMAL(15,2)' },
+        { name: 'amount_collected', type: 'DECIMAL(15,2)' },
+        { name: 'overdue_days', type: 'INTEGER' },
+        { name: 'status', type: 'VARCHAR(20)' },
+        { name: 'collection_date', type: 'DATE' },
+        { name: 'notes', type: 'TEXT' },
+        { name: 'assigned_to', type: 'INTEGER' }
+      ]);
+
+      await ensureTableColumns(db.sequelize, 'clients', [
+        { name: 'client_number', type: 'VARCHAR(255)' },
+        { name: 'first_name', type: 'VARCHAR(255)' },
+        { name: 'last_name', type: 'VARCHAR(255)' },
+        { name: 'email', type: 'VARCHAR(255)' },
+        { name: 'phone', type: 'VARCHAR(255)' },
+        { name: 'primary_phone_country', type: 'VARCHAR(10)' },
+        { name: 'secondary_phone', type: 'VARCHAR(20)' },
+        { name: 'secondary_phone_country', type: 'VARCHAR(10)' },
+        { name: 'date_of_birth', type: 'DATE' },
+        { name: 'gender', type: 'VARCHAR(20)' },
+        { name: 'marital_status', type: 'VARCHAR(20)' },
+        { name: 'identification_type', type: 'VARCHAR(50)' },
+        { name: 'identification_number', type: 'VARCHAR(50)' },
+        { name: 'address', type: 'TEXT' },
+        { name: 'city', type: 'VARCHAR(255)' },
+        { name: 'state', type: 'VARCHAR(255)' },
+        { name: 'zip_code', type: 'VARCHAR(20)' },
+        { name: 'country', type: 'VARCHAR(255)' },
+        { name: 'occupation', type: 'VARCHAR(255)' },
+        { name: 'employer', type: 'VARCHAR(255)' },
+        { name: 'employee_number', type: 'VARCHAR(50)' },
+        { name: 'tax_number', type: 'VARCHAR(50)' },
+        { name: 'monthly_income', type: 'DECIMAL(10,2)' },
+        { name: 'income_currency', type: 'VARCHAR(3)' },
+        { name: 'kyc_status', type: 'VARCHAR(20)' },
+        { name: 'status', type: 'VARCHAR(20)' },
+        { name: 'branch_id', type: 'INTEGER' },
+        { name: 'created_by', type: 'INTEGER' },
+        { name: 'user_id', type: 'INTEGER' },
+        { name: 'credit_score', type: 'INTEGER' },
+        { name: 'profile_image', type: 'VARCHAR(255)' },
+        { name: 'total_dues', type: 'DECIMAL(15,2)' },
+        { name: 'dues_currency', type: 'VARCHAR(3)' }
+      ]);
+    } else {
+      // Sync database - use alter: true to add new columns automatically
+      // The postinstall script also runs migrations, but this ensures schema is up to date
+      await db.sequelize.sync({ alter: true });
+    }
     
            // Run additional migrations for ENUM changes (PostgreSQL requires special handling)
            try {

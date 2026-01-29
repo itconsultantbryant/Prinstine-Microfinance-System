@@ -56,7 +56,7 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const response = await apiClient.get('/api/dashboard');
-      setStats(response.data.data);
+      setStats(response.data?.data ?? null);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -68,20 +68,21 @@ const Dashboard = () => {
   const fetchRealtimeData = async () => {
     try {
       const response = await apiClient.get('/api/dashboard/realtime');
-      setRealtimeData(response.data.data);
+      setRealtimeData(response.data?.data ?? null);
     } catch (error) {
       console.error('Failed to fetch real-time data:', error);
+      toast.error(error.response?.data?.message || 'Failed to load real-time data');
     }
   };
 
   const fetchHistoricalData = async () => {
     try {
       const response = await apiClient.get('/api/dashboard/historical');
-      setHistoricalData(response.data.data);
+      setHistoricalData(response.data?.data ?? null);
     } catch (error) {
       console.error('Failed to fetch historical data:', error);
-      // Set empty structure if fetch fails
       setHistoricalData({ months: [], portfolioValues: [], collections: [] });
+      toast.error(error.response?.data?.message || 'Failed to load historical data');
     }
   };
 

@@ -10,6 +10,85 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
+// Helper function to delete all financial records for a client (soft delete where supported)
+async function deleteClientFinancialRecords(clientId, transaction) {
+  const loans = await db.Loan.findAll({ where: { client_id: clientId }, transaction, paranoid: false });
+  const loanIds = loans.map(loan => loan.id);
+
+  const savingsAccounts = await db.SavingsAccount.findAll({ where: { client_id: clientId }, transaction, paranoid: false });
+  const savingsIds = savingsAccounts.map(savings => savings.id);
+
+  const transactionWhere = {
+    [db.Sequelize.Op.or]: [
+      { client_id: clientId }
+    ]
+  };
+  if (loanIds.length > 0) {
+    transactionWhere[db.Sequelize.Op.or].push({ loan_id: { [db.Sequelize.Op.in]: loanIds } });
+  }
+  if (savingsIds.length > 0) {
+    transactionWhere[db.Sequelize.Op.or].push({ savings_account_id: { [db.Sequelize.Op.in]: savingsIds } });
+  }
+
+  const allTransactions = await db.Transaction.findAll({
+    where: transactionWhere,
+    attributes: ['id'],
+    transaction
+  });
+  const transactionIds = allTransactions.map(t => t.id);
+
+  if (transactionIds.length > 0) {
+    await db.Revenue.destroy({
+      where: { transaction_id: { [db.Sequelize.Op.in]: transactionIds } },
+      transaction
+    });
+  }
+
+  if (loanIds.length > 0) {
+    await db.LoanRepayment.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      transaction
+    });
+
+    await db.Collection.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      transaction
+    });
+
+    await db.Revenue.destroy({
+      where: { loan_id: { [db.Sequelize.Op.in]: loanIds } },
+      transaction
+    });
+
+    await db.Loan.destroy({
+      where: { client_id: clientId },
+      transaction
+    });
+  }
+
+  if (savingsIds.length > 0) {
+    await db.SavingsAccount.destroy({
+      where: { client_id: clientId },
+      transaction
+    });
+  }
+
+  await db.Transaction.destroy({
+    where: transactionWhere,
+    transaction
+  });
+
+  await db.Collateral.destroy({
+    where: { client_id: clientId },
+    transaction
+  });
+
+  await db.KycDocument.destroy({
+    where: { client_id: clientId },
+    transaction
+  });
+}
+
 // Create new user (admin only)
 router.post('/', authorize('admin'), [
   body('name').notEmpty().withMessage('Name is required'),
@@ -272,7 +351,7 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
     });
     
     if (associatedClient) {
-      // Soft delete the associated client first
+      await deleteClientFinancialRecords(associatedClient.id, transaction);
       await associatedClient.destroy({ transaction });
     }
     

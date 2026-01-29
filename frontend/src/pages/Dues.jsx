@@ -46,7 +46,7 @@ const Dues = () => {
       
       const response = await apiClient.get('/api/clients', { params });
       // Filter clients with dues (negative total_dues)
-      const clientsWithDues = (response.data.data.clients || []).filter(
+      const clientsWithDues = (response.data?.data?.clients ?? []).filter(
         client => parseFloat(client.total_dues || 0) < 0
       );
       setClients(clientsWithDues);
@@ -61,7 +61,7 @@ const Dues = () => {
   const handleView = async (clientId) => {
     try {
       const response = await apiClient.get(`/api/clients/${clientId}`);
-      setSelectedClient(response.data.data.client);
+      setSelectedClient(response.data?.data?.client ?? null);
       setShowViewModal(true);
     } catch (error) {
       console.error('Failed to fetch client details:', error);
@@ -72,7 +72,11 @@ const Dues = () => {
   const handleEdit = async (clientId) => {
     try {
       const response = await apiClient.get(`/api/clients/${clientId}`);
-      const client = response.data.data.client;
+      const client = response.data?.data?.client;
+      if (!client) {
+        toast.error('Client not found');
+        return;
+      }
       setEditingClient(client);
       setEditFormData({
         total_dues: Math.abs(parseFloat(client.total_dues || 0)),
@@ -81,7 +85,7 @@ const Dues = () => {
       setShowEditModal(true);
     } catch (error) {
       console.error('Failed to fetch client details:', error);
-      toast.error('Failed to load client details');
+      toast.error(error.response?.data?.message || 'Failed to load client details');
     }
   };
 
@@ -159,7 +163,7 @@ const Dues = () => {
           client_id: clientId 
         } 
       });
-      const duesPayments = (response.data.data.transactions || []).filter(
+      const duesPayments = (response.data?.data?.transactions ?? []).filter(
         t => t.type === 'due_payment'
       );
       setDuesHistory(duesPayments);
@@ -201,8 +205,9 @@ const Dues = () => {
         transaction_date: new Date().toISOString().split('T')[0]
       });
       
-      if (response.data.data.receipt) {
-        setReceipt(response.data.data.receipt);
+      const receiptData = response.data?.data?.receipt;
+      if (receiptData) {
+        setReceipt(receiptData);
       }
       
       fetchClients();

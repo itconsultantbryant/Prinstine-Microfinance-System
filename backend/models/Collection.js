@@ -54,7 +54,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'collections',
-    timestamps: true
+    timestamps: true,
+    paranoid: true,
+    deletedAt: 'deleted_at'
   });
 
   return Collection;

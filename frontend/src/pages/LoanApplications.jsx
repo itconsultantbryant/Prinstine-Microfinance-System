@@ -64,7 +64,7 @@ const LoanApplications = () => {
       toast.success('Loan application approved successfully!');
       fetchApplications();
     } catch (error) {
-      toast.error('Failed to approve loan application');
+      toast.error(error.response?.data?.message || 'Failed to approve loan application');
     }
   };
 

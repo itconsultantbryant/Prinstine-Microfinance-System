@@ -18,8 +18,9 @@ const Profile = () => {
     try {
       const response = await apiClient.put(`/api/users/${user.id}`, formData);
       toast.success('Profile updated successfully!');
-      if (updateUser) {
-        updateUser(response.data.data.user);
+      const updatedUser = response.data?.data?.user;
+      if (updateUser && updatedUser) {
+        updateUser(updatedUser);
       }
     } catch (error) {
       console.error('Failed to update profile:', error);

@@ -58,7 +58,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'revenues',
-    timestamps: true
+    timestamps: true,
+    paranoid: true,
+    deletedAt: 'deleted_at'
   });
 
   return Revenue;
