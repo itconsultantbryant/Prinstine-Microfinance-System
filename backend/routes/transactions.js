@@ -114,9 +114,37 @@ router.post('/', [
       }
     }
 
-    // Generate transaction number
-    const transactionCount = await db.Transaction.count();
-    const transactionNumber = `TXN${String(transactionCount + 1).padStart(8, '0')}`;
+    // Generate unique transaction number (avoid count-based collisions)
+    let transactionNumber;
+    try {
+      const lastTransaction = await db.Transaction.findOne({
+        attributes: ['transaction_number'],
+        order: [['id', 'DESC']],
+        paranoid: false
+      });
+      let sequenceNumber = 1;
+      if (lastTransaction?.transaction_number) {
+        const lastNumber = parseInt(String(lastTransaction.transaction_number).replace('TXN', '')) || 0;
+        sequenceNumber = lastNumber + 1;
+      }
+      let attempts = 0;
+      do {
+        transactionNumber = `TXN${String(sequenceNumber).padStart(8, '0')}`;
+        const existing = await db.Transaction.findOne({
+          where: { transaction_number: transactionNumber },
+          paranoid: false
+        });
+        if (!existing) break;
+        sequenceNumber++;
+        attempts++;
+      } while (attempts < 100);
+      if (!transactionNumber) {
+        transactionNumber = `TXN${String(Date.now()).slice(-8)}`;
+      }
+    } catch (error) {
+      console.error('Transaction number generation error:', error);
+      transactionNumber = `TXN${String(Date.now()).slice(-8)}`;
+    }
 
     // Determine currency for transaction
     let currency = req.body.currency || 'USD';
@@ -182,7 +210,19 @@ router.post('/', [
       created_by: req.userId
     };
 
-    const transaction = await db.Transaction.create(transactionData);
+    let transaction;
+    try {
+      transaction = await db.Transaction.create(transactionData);
+    } catch (createError) {
+      if (createError.name === 'SequelizeUniqueConstraintError' && createError.fields?.transaction_number) {
+        // Retry once with a fresh transaction number
+        transactionNumber = `TXN${String(Date.now()).slice(-8)}`;
+        transactionData.transaction_number = transactionNumber;
+        transaction = await db.Transaction.create(transactionData);
+      } else {
+        throw createError;
+      }
+    }
 
     // Handle due payment - add or reduce client's total_dues (only if same currency)
     if (req.body.type === 'due_payment' && client) {
