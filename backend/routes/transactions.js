@@ -31,16 +31,27 @@ router.get('/', async (req, res) => {
     // Get limit from query params, default to 100
     const limit = parseInt(req.query.limit) || 100;
     
-    const transactions = await db.Transaction.findAll({
-      where: whereClause,
-      include: [
-        { model: db.Client, as: 'client', required: false },
-        { model: db.Loan, as: 'loan', required: false },
-        { model: db.Branch, as: 'branch', required: false }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: limit
-    });
+    let transactions = [];
+    try {
+      transactions = await db.Transaction.findAll({
+        where: whereClause,
+        include: [
+          { model: db.Client, as: 'client', required: false },
+          { model: db.Loan, as: 'loan', required: false },
+          { model: db.Branch, as: 'branch', required: false }
+        ],
+        order: [['createdAt', 'DESC']],
+        limit: limit
+      });
+    } catch (includeError) {
+      console.error('Transaction include error:', includeError);
+      // Fallback without includes if associations are misconfigured
+      transactions = await db.Transaction.findAll({
+        where: whereClause,
+        order: [['createdAt', 'DESC']],
+        limit: limit
+      });
+    }
 
     res.json({
       success: true,
@@ -206,13 +217,19 @@ router.post('/', [
     }
 
     // Reload transaction with associations for response
-    const createdTransaction = await db.Transaction.findByPk(transaction.id, {
-      include: [
-        { model: db.Client, as: 'client', required: false },
-        { model: db.Loan, as: 'loan', required: false },
-        { model: db.SavingsAccount, as: 'savingsAccount', required: false }
-      ]
-    });
+    let createdTransaction = null;
+    try {
+      createdTransaction = await db.Transaction.findByPk(transaction.id, {
+        include: [
+          { model: db.Client, as: 'client', required: false },
+          { model: db.Loan, as: 'loan', required: false },
+          { model: db.SavingsAccount, as: 'savingsAccount', required: false }
+        ]
+      });
+    } catch (includeError) {
+      console.error('Transaction reload include error:', includeError);
+      createdTransaction = await db.Transaction.findByPk(transaction.id);
+    }
 
     res.status(201).json({
       success: true,
