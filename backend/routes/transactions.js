@@ -128,22 +128,18 @@ router.post('/', [
     
     // If due payment, validate and inherit currency from client's dues_currency
     if (req.body.type === 'due_payment') {
-      if (!client.dues_currency) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Client does not have a dues currency set. Please set dues currency for this client first.' 
-        });
-      }
-      // If currency provided, validate it matches client's dues currency
-      if (req.body.currency && req.body.currency !== client.dues_currency) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Due payment currency must match client's dues currency (${client.dues_currency})` 
-        });
-      }
-      // If no currency provided, use client's dues currency
-      if (!req.body.currency) {
-        currency = client.dues_currency;
+      if (client.dues_currency) {
+        // If currency provided, validate it matches client's dues currency
+        if (req.body.currency && req.body.currency !== client.dues_currency) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Due payment currency must match client's dues currency (${client.dues_currency})` 
+          });
+        }
+        // If no currency provided, use client's dues currency
+        if (!req.body.currency) {
+          currency = client.dues_currency;
+        }
       }
     }
     
@@ -171,17 +167,30 @@ router.post('/', [
 
     const transaction = await db.Transaction.create(transactionData);
 
-    // Handle due payment - reduce client's total_dues (only if same currency)
+    // Handle due payment - add or reduce client's total_dues (only if same currency)
     if (req.body.type === 'due_payment' && client) {
+      const paymentAmount = parseFloat(req.body.amount || 0);
+      const currentDues = parseFloat(client.total_dues || 0);
+      const updatedCurrency = client.dues_currency || currency;
+
+      // If client has no dues currency yet, set it from the transaction
+      if (!client.dues_currency && updatedCurrency) {
+        await client.update({ dues_currency: updatedCurrency });
+      }
+
       // Currency should already match at this point (validated above)
-      if (client.dues_currency === currency) {
-        const paymentAmount = parseFloat(req.body.amount || 0);
-        const currentDues = parseFloat(client.total_dues || 0);
-        // Add payment amount to negative dues (reduces the negative balance)
-        const newDues = Math.min(0, currentDues + paymentAmount);
+      if (updatedCurrency === currency) {
+        let newDues = 0;
+        if (currentDues >= 0) {
+          // No outstanding dues yet - treat this as adding dues
+          newDues = -Math.abs(paymentAmount);
+        } else {
+          // Reduce outstanding dues (stored as negative)
+          newDues = Math.min(0, currentDues + paymentAmount);
+        }
         await client.update({ total_dues: newDues });
       } else {
-        console.warn(`Due payment currency (${currency}) does not match client dues currency (${client.dues_currency})`);
+        console.warn(`Due payment currency (${currency}) does not match client dues currency (${updatedCurrency})`);
       }
     }
 

@@ -193,6 +193,7 @@ const Dues = () => {
         client_id: selectedClient.id,
         type: 'due_payment',
         amount: paymentAmount,
+        purpose: 'Dues payment',
         description: paymentData.description || `Monthly dues payment for ${selectedClient.first_name} ${selectedClient.last_name}`,
         transaction_date: paymentData.transaction_date
       });
