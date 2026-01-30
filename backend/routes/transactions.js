@@ -128,13 +128,19 @@ router.post('/', [
     
     // If due payment, validate and inherit currency from client's dues_currency
     if (req.body.type === 'due_payment') {
+      const currentDues = parseFloat(client.total_dues || 0);
       if (client.dues_currency) {
         // If currency provided, validate it matches client's dues currency
         if (req.body.currency && req.body.currency !== client.dues_currency) {
-          return res.status(400).json({ 
-            success: false, 
-            message: `Due payment currency must match client's dues currency (${client.dues_currency})` 
-          });
+          // Allow switching currency only when no outstanding dues exist yet
+          if (currentDues === 0) {
+            currency = req.body.currency;
+          } else {
+            return res.status(400).json({ 
+              success: false, 
+              message: `Due payment currency must match client's dues currency (${client.dues_currency})` 
+            });
+          }
         }
         // If no currency provided, use client's dues currency
         if (!req.body.currency) {
@@ -174,7 +180,8 @@ router.post('/', [
       const updatedCurrency = client.dues_currency || currency;
 
       // If client has no dues currency yet, set it from the transaction
-      if (!client.dues_currency && updatedCurrency) {
+      // Also allow setting currency when dues are currently zero
+      if ((!client.dues_currency || currentDues === 0) && updatedCurrency) {
         await client.update({ dues_currency: updatedCurrency });
       }
 
