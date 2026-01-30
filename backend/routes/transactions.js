@@ -177,10 +177,14 @@ router.post('/', [
     if (req.body.type === 'due_payment' && client) {
       const paymentAmount = parseFloat(req.body.amount || 0);
       const currentDues = parseFloat(client.total_dues || 0);
-      const updatedCurrency = client.dues_currency || currency;
+      let updatedCurrency = client.dues_currency || currency;
 
-      // If client has no dues currency yet, set it from the transaction
-      // Also allow setting currency when dues are currently zero
+      // Allow updating dues currency when there are no outstanding dues yet
+      if (currentDues === 0 && req.body.currency) {
+        updatedCurrency = req.body.currency;
+      }
+
+      // If client has no dues currency yet or we're switching with zero dues, set it from transaction
       if ((!client.dues_currency || currentDues === 0) && updatedCurrency) {
         await client.update({ dues_currency: updatedCurrency });
       }
