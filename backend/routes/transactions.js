@@ -21,6 +21,11 @@ router.get('/', async (req, res) => {
         clientId = client.id;
         whereClause.client_id = clientId;
       }
+    } else if (req.query.client_id) {
+      const queryClientId = parseInt(req.query.client_id);
+      if (!isNaN(queryClientId)) {
+        whereClause.client_id = queryClientId;
+      }
     }
 
     // Get limit from query params, default to 100

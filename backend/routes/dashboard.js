@@ -39,12 +39,22 @@ router.get('/', authenticate, async (req, res) => {
       }
     }
 
-    let whereClause = {};
+    let loansWhere = {};
+    let savingsWhere = {};
+    let transactionsWhere = {};
+    let clientsWhere = {};
     if (userRole === 'borrower' && clientId) {
-      // For borrowers, filter by their client_id
-      whereClause.client_id = clientId;
+      // For borrowers, filter by their client_id (loans/savings/transactions)
+      loansWhere.client_id = clientId;
+      savingsWhere.client_id = clientId;
+      transactionsWhere.client_id = clientId;
+      // Clients table uses id, not client_id
+      clientsWhere.id = clientId;
     } else if (branchId && userRole !== 'admin' && userRole !== 'general_manager') {
-      whereClause.branch_id = branchId;
+      loansWhere.branch_id = branchId;
+      savingsWhere.branch_id = branchId;
+      transactionsWhere.branch_id = branchId;
+      clientsWhere.branch_id = branchId;
     }
 
       // Get statistics with currency separation (LRD and USD)
@@ -88,28 +98,28 @@ router.get('/', authenticate, async (req, res) => {
       try {
         // Fetch all data at once for efficiency
         const [clientsCount, allLoans, allSavings, allTransactions, allClients, loansList, transactionsList] = await Promise.all([
-          db.Client.count({ where: whereClause }).catch(() => 0),
+          db.Client.count({ where: clientsWhere }).catch(() => 0),
           db.Loan.findAll({ 
-            where: whereClause,
+            where: loansWhere,
             attributes: ['id', 'currency', 'amount', 'outstanding_balance', 'status']
           }).catch(() => []),
           db.SavingsAccount.findAll({ 
             where: { 
-              ...whereClause,
+              ...savingsWhere,
               status: 'active'
             },
             attributes: ['id', 'currency', 'balance']
           }).catch(() => []),
           db.Transaction.findAll({ 
-            where: whereClause,
-            attributes: ['id', 'currency', 'amount', 'type']
+            where: transactionsWhere,
+            attributes: ['id', 'client_id', 'currency', 'amount', 'type']
           }).catch(() => []),
           db.Client.findAll({
-            where: whereClause,
+            where: clientsWhere,
             attributes: ['id', 'total_dues', 'dues_currency']
           }).catch(() => []),
           db.Loan.findAll({
-            where: whereClause,
+            where: loansWhere,
             include: [
               { model: db.Client, as: 'client', required: false, attributes: ['id', 'first_name', 'last_name', 'client_number'] },
               { model: db.Branch, as: 'branch', required: false, attributes: ['id', 'name'] }
@@ -118,7 +128,7 @@ router.get('/', authenticate, async (req, res) => {
             limit: 5
           }).catch(() => []),
           db.Transaction.findAll({
-            where: whereClause,
+            where: transactionsWhere,
             include: [
               { model: db.Client, as: 'client', required: false, attributes: ['id', 'first_name', 'last_name'] },
               { model: db.Loan, as: 'loan', required: false, attributes: ['id', 'loan_number'] }

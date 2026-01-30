@@ -246,13 +246,13 @@ router.post('/', authenticate, upload.single('profile_image'), async (req, res) 
       profileImagePath = `clients/${req.file.filename}`;
     }
 
-    // Handle total_dues - if provided, set as negative
+    // Handle total_dues - store as negative outstanding amount
     let totalDues = 0;
     let duesCurrency = req.body.dues_currency || 'USD';
-    if (req.body.total_dues && req.body.total_dues !== '') {
+    if (req.body.total_dues !== undefined && req.body.total_dues !== '') {
       const duesAmount = parseFloat(req.body.total_dues);
-      if (!isNaN(duesAmount) && duesAmount > 0) {
-        totalDues = -Math.abs(duesAmount); // Set as negative
+      if (!isNaN(duesAmount)) {
+        totalDues = duesAmount === 0 ? 0 : -Math.abs(duesAmount);
       }
     }
     
@@ -590,13 +590,13 @@ router.put('/:id', authenticate, upload.single('profile_image'), async (req, res
     
     // Handle total_dues and dues_currency
     if (req.body.total_dues !== undefined) {
-      if (req.body.total_dues && req.body.total_dues !== '') {
-        const duesAmount = parseFloat(req.body.total_dues);
-        if (!isNaN(duesAmount) && duesAmount > 0) {
-          updateData.total_dues = -Math.abs(duesAmount); // Set as negative
-        }
-      } else {
+      if (req.body.total_dues === '' || req.body.total_dues === null) {
         updateData.total_dues = 0;
+      } else {
+        const duesAmount = parseFloat(req.body.total_dues);
+        if (!isNaN(duesAmount)) {
+          updateData.total_dues = duesAmount === 0 ? 0 : -Math.abs(duesAmount);
+        }
       }
     }
     
